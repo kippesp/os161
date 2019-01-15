@@ -44,48 +44,46 @@
  * Called by the driver during initialization.
  */
 
-void whalemating_init() {
-	return;
+void whalemating_init()
+{
+  return;
 }
 
 /*
  * Called by the driver during teardown.
  */
 
-void
-whalemating_cleanup() {
-	return;
+void whalemating_cleanup()
+{
+  return;
 }
 
-void
-male(uint32_t index)
+void male(uint32_t index)
 {
-	(void)index;
-	/*
-	 * Implement this function by calling male_start and male_end when
-	 * appropriate.
-	 */
-	return;
+  (void)index;
+  /*
+   * Implement this function by calling male_start and male_end when
+   * appropriate.
+   */
+  return;
 }
 
-void
-female(uint32_t index)
+void female(uint32_t index)
 {
-	(void)index;
-	/*
-	 * Implement this function by calling female_start and female_end when
-	 * appropriate.
-	 */
-	return;
+  (void)index;
+  /*
+   * Implement this function by calling female_start and female_end when
+   * appropriate.
+   */
+  return;
 }
 
-void
-matchmaker(uint32_t index)
+void matchmaker(uint32_t index)
 {
-	(void)index;
-	/*
-	 * Implement this function by calling matchmaker_start and matchmaker_end
-	 * when appropriate.
-	 */
-	return;
+  (void)index;
+  /*
+   * Implement this function by calling matchmaker_start and matchmaker_end
+   * when appropriate.
+   */
+  return;
 }

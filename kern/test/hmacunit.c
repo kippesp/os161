@@ -44,11 +44,9 @@
 ////////////////////////////////////////////////////////////
 // support code
 
-static
-void
-ok(void)
+static void ok(void)
 {
-	kprintf("Test passed.\n");
+  kprintf("Test passed.\n");
 }
 
 /*
@@ -57,43 +55,43 @@ ok(void)
  * Test some known msg/key/hashes to make sure we produce the
  * right results.
  */
-static const char *plaintext1[] = {
-	"The quick brown fox jumps over the lazy dog",
-	"The only people for me are the mad ones",
-	"I don't exactly know what I mean by that, but I mean it.",
+static const char* plaintext1[] = {
+    "The quick brown fox jumps over the lazy dog",
+    "The only people for me are the mad ones",
+    "I don't exactly know what I mean by that, but I mean it.",
 };
 
-static const char *keys1[] = {
-	"xqWmgzbvGuLIeeKOrwMA",
-	"ZxuvolLXL7C68pDjsclX",
-	"PYeuVzKuB03awYDgJotS",
+static const char* keys1[] = {
+    "xqWmgzbvGuLIeeKOrwMA",
+    "ZxuvolLXL7C68pDjsclX",
+    "PYeuVzKuB03awYDgJotS",
 };
 
-static const char *hashes1[] = {
-	"251ab1da03c94435daf44898fcd11606669e222270e4ac90d04a18a9df8fdfd6",
-	"75bbf48c53ccba08c244447ef7eff2e0a02f23acfdac6502282ec431823fb393",
-	"6d7d2b5eabcda504f26de7547185483b19f9953a6eaeec6c364bb45e20b28598",
+static const char* hashes1[] = {
+    "251ab1da03c94435daf44898fcd11606669e222270e4ac90d04a18a9df8fdfd6",
+    "75bbf48c53ccba08c244447ef7eff2e0a02f23acfdac6502282ec431823fb393",
+    "6d7d2b5eabcda504f26de7547185483b19f9953a6eaeec6c364bb45e20b28598",
 };
 
 #define N_TESTS_1 3
 
-int
-hmacu1(int nargs, char **args)
+int hmacu1(int nargs, char** args)
 {
-	char *hash;
-	int res;
+  char* hash;
+  int res;
 
-	(void)nargs; (void)args;
-	int i;
-	for (i = 0; i < N_TESTS_1; i++)
-	{
-		res = hmac(plaintext1[i], strlen(plaintext1[i]), keys1[i], strlen(keys1[i]), &hash);
-		KASSERT(!res);
-		KASSERT(strcmp(hash, hashes1[i]) == 0);
-		kfree(hash);
-	}
+  (void)nargs;
+  (void)args;
+  int i;
+  for (i = 0; i < N_TESTS_1; i++) {
+    res = hmac(plaintext1[i], strlen(plaintext1[i]), keys1[i], strlen(keys1[i]),
+               &hash);
+    KASSERT(!res);
+    KASSERT(strcmp(hash, hashes1[i]) == 0);
+    kfree(hash);
+  }
 
-	ok();
-	/* clean up */
-	return 0;
+  ok();
+  /* clean up */
+  return 0;
 }

@@ -28,7 +28,7 @@
  */
 
 /* Make sure to build out-of-line versions of spl inline functions */
-#define SPL_INLINE	/* empty */
+#define SPL_INLINE /* empty */
 
 #include <types.h>
 #include <lib.h>
@@ -53,7 +53,6 @@
  * requirements and hardware capabilities) so things would get more
  * complicated -- but nearly all of this code could remain MI.
  */
-
 
 /*
  * Raise and lower the interrupt priority level.
@@ -83,78 +82,74 @@
  *
  * curthread->t_iplhigh_count is used to track this.
  */
-void
-splraise(int oldspl, int newspl)
+void splraise(int oldspl, int newspl)
 {
-	struct thread *cur = curthread;
+  struct thread* cur = curthread;
 
-	/* only one priority level, only one valid args configuration */
-	KASSERT(oldspl == IPL_NONE);
-	KASSERT(newspl == IPL_HIGH);
+  /* only one priority level, only one valid args configuration */
+  KASSERT(oldspl == IPL_NONE);
+  KASSERT(newspl == IPL_HIGH);
 
-	if (!CURCPU_EXISTS()) {
-		/* before curcpu initialization; interrupts are off anyway */
-		return;
-	}
+  if (!CURCPU_EXISTS()) {
+    /* before curcpu initialization; interrupts are off anyway */
+    return;
+  }
 
-	if (cur->t_iplhigh_count == 0) {
-		cpu_irqoff();
-	}
-	cur->t_iplhigh_count++;
+  if (cur->t_iplhigh_count == 0) {
+    cpu_irqoff();
+  }
+  cur->t_iplhigh_count++;
 }
 
-void
-spllower(int oldspl, int newspl)
+void spllower(int oldspl, int newspl)
 {
-	struct thread *cur = curthread;
+  struct thread* cur = curthread;
 
-	/* only one priority level, only one valid args configuration */
-	KASSERT(oldspl == IPL_HIGH);
-	KASSERT(newspl == IPL_NONE);
+  /* only one priority level, only one valid args configuration */
+  KASSERT(oldspl == IPL_HIGH);
+  KASSERT(newspl == IPL_NONE);
 
-	if (!CURCPU_EXISTS()) {
-		/* before curcpu initialization; interrupts are off anyway */
-		return;
-	}
+  if (!CURCPU_EXISTS()) {
+    /* before curcpu initialization; interrupts are off anyway */
+    return;
+  }
 
-	cur->t_iplhigh_count--;
-	if (cur->t_iplhigh_count == 0) {
-		cpu_irqon();
-	}
+  cur->t_iplhigh_count--;
+  if (cur->t_iplhigh_count == 0) {
+    cpu_irqon();
+  }
 }
-
 
 /*
  * Disable or enable interrupts and adjust curspl setting. Return old
  * spl level.
  */
-int
-splx(int spl)
+int splx(int spl)
 {
-	struct thread *cur = curthread;
-	int ret;
+  struct thread* cur = curthread;
+  int ret;
 
-	if (!CURCPU_EXISTS()) {
-		/* before curcpu initialization; interrupts are off anyway */
-		return spl;
-	}
+  if (!CURCPU_EXISTS()) {
+    /* before curcpu initialization; interrupts are off anyway */
+    return spl;
+  }
 
-	if (cur->t_curspl < spl) {
-		/* turning interrupts off */
-		splraise(cur->t_curspl, spl);
-		ret = cur->t_curspl;
-		cur->t_curspl = spl;
-	}
-	else if (cur->t_curspl > spl) {
-		/* turning interrupts on */
-		ret = cur->t_curspl;
-		cur->t_curspl = spl;
-		spllower(ret, spl);
-	}
-	else {
-		/* do nothing */
-		ret = spl;
-	}
+  if (cur->t_curspl < spl) {
+    /* turning interrupts off */
+    splraise(cur->t_curspl, spl);
+    ret = cur->t_curspl;
+    cur->t_curspl = spl;
+  }
+  else if (cur->t_curspl > spl) {
+    /* turning interrupts on */
+    ret = cur->t_curspl;
+    cur->t_curspl = spl;
+    spllower(ret, spl);
+  }
+  else {
+    /* do nothing */
+    ret = spl;
+  }
 
-	return ret;
+  return ret;
 }

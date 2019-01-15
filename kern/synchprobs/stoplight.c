@@ -73,46 +73,44 @@
  * Called by the driver during initialization.
  */
 
-void
-stoplight_init() {
-	return;
+void stoplight_init()
+{
+  return;
 }
 
 /*
  * Called by the driver during teardown.
  */
 
-void stoplight_cleanup() {
-	return;
+void stoplight_cleanup()
+{
+  return;
 }
 
-void
-turnright(uint32_t direction, uint32_t index)
+void turnright(uint32_t direction, uint32_t index)
 {
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+  (void)direction;
+  (void)index;
+  /*
+   * Implement this function.
+   */
+  return;
 }
-void
-gostraight(uint32_t direction, uint32_t index)
+void gostraight(uint32_t direction, uint32_t index)
 {
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+  (void)direction;
+  (void)index;
+  /*
+   * Implement this function.
+   */
+  return;
 }
-void
-turnleft(uint32_t direction, uint32_t index)
+void turnleft(uint32_t direction, uint32_t index)
 {
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	return;
+  (void)direction;
+  (void)index;
+  /*
+   * Implement this function.
+   */
+  return;
 }

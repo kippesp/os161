@@ -43,133 +43,122 @@
 
 #define MAX_SPINNERS 16
 
-static struct lock *deadlock_locks[2];
-static struct semaphore *deadlock_sem;
+static struct lock* deadlock_locks[2];
+static struct semaphore* deadlock_sem;
 
 struct spinlock spinners_lock[MAX_SPINNERS];
 
-static
-void
-inititems(void)
+static void inititems(void)
 {
-	int i;
+  int i;
 
-	for (i = 0; i < 2; i++) {
-		deadlock_locks[i] = lock_create("deadlock lock");
-		if (deadlock_locks[i] == NULL) {
-			panic("automationtest: lock_create failed\n");
-		}
-	}
-	deadlock_sem = sem_create("deadlock sem", 0);
-	if (deadlock_sem == NULL) {
-		panic("automationtest: sem_create failed\n");
-	}
-	
-	for (i = 0; i < MAX_SPINNERS; i++) {
-		spinlock_init(&(spinners_lock[i]));
-	}
+  for (i = 0; i < 2; i++) {
+    deadlock_locks[i] = lock_create("deadlock lock");
+    if (deadlock_locks[i] == NULL) {
+      panic("automationtest: lock_create failed\n");
+    }
+  }
+  deadlock_sem = sem_create("deadlock sem", 0);
+  if (deadlock_sem == NULL) {
+    panic("automationtest: sem_create failed\n");
+  }
+
+  for (i = 0; i < MAX_SPINNERS; i++) {
+    spinlock_init(&(spinners_lock[i]));
+  }
 }
 
-static
-void
-dltestthread(void *junk1, unsigned long junk2)
+static void dltestthread(void* junk1, unsigned long junk2)
 {
-	(void)junk1;
-	(void)junk2;
-	
-	lock_acquire(deadlock_locks[1]);	
-	V(deadlock_sem);
-	lock_acquire(deadlock_locks[0]);	
+  (void)junk1;
+  (void)junk2;
+
+  lock_acquire(deadlock_locks[1]);
+  V(deadlock_sem);
+  lock_acquire(deadlock_locks[0]);
 }
 
-int
-dltest(int nargs, char **args)
+int dltest(int nargs, char** args)
 {
-	int result;
+  int result;
 
-	(void)nargs;
-	(void)args;
-	
-	inititems();
-	
-	lock_acquire(deadlock_locks[0]);	
+  (void)nargs;
+  (void)args;
 
-	result = thread_fork("dltest", NULL, dltestthread, NULL, (unsigned long)0);
-	if (result) {
-		panic("dltest: thread_fork failed: %s\n", strerror(result));
-	}
+  inititems();
 
-	P(deadlock_sem);
-	lock_acquire(deadlock_locks[1]);	
+  lock_acquire(deadlock_locks[0]);
 
-	panic("dltest: didn't create deadlock (locks probably don't work)\n");
-	
-	// 09 Jan 2015 : GWA : Shouldn't return.
-	return 0;
+  result = thread_fork("dltest", NULL, dltestthread, NULL, (unsigned long)0);
+  if (result) {
+    panic("dltest: thread_fork failed: %s\n", strerror(result));
+  }
+
+  P(deadlock_sem);
+  lock_acquire(deadlock_locks[1]);
+
+  panic("dltest: didn't create deadlock (locks probably don't work)\n");
+
+  // 09 Jan 2015 : GWA : Shouldn't return.
+  return 0;
 }
 
-inline
-static
-void
-infinite_spinner(unsigned long i)
+inline static void infinite_spinner(unsigned long i)
 {
-	(void)i;
-	volatile int j;
+  (void)i;
+  volatile int j;
 
-	for (j=0; j<10000000; j++);
+  for (j = 0; j < 10000000; j++)
+    ;
 
-	spinlock_acquire(&(spinners_lock[i]));
-	
-	for (j=0; j<=1000; j++) {
-		if (j == 1000) {
-			j = 0;
-		}
-	}
-	panic("ll1test: infinite spin loop completed\n");
+  spinlock_acquire(&(spinners_lock[i]));
+
+  for (j = 0; j <= 1000; j++) {
+    if (j == 1000) {
+      j = 0;
+    }
+  }
+  panic("ll1test: infinite spin loop completed\n");
 }
 
-int
-ll1test(int nargs, char **args)
+int ll1test(int nargs, char** args)
 {
-	(void)nargs;
-	(void)args;
-	
-	inititems();
+  (void)nargs;
+  (void)args;
 
-	infinite_spinner((unsigned long) 0);
+  inititems();
 
-	// 09 Jan 2015 : GWA : Shouldn't return.
-	return 0;
+  infinite_spinner((unsigned long)0);
+
+  // 09 Jan 2015 : GWA : Shouldn't return.
+  return 0;
 }
 
-
-static
-void
-ll16testthread(void *junk1, unsigned long i)
+static void ll16testthread(void* junk1, unsigned long i)
 {
-	(void)junk1;
+  (void)junk1;
 
-	infinite_spinner(i);
+  infinite_spinner(i);
 }
 
-int
-ll16test(int nargs, char **args)
+int ll16test(int nargs, char** args)
 {
-	int i, result;
-	
-	inititems();
+  int i, result;
 
-	(void)nargs;
-	(void)args;
+  inititems();
 
-	for (i=1; i<16; i++) {
-		result = thread_fork("ll16testthread", NULL, ll16testthread, NULL, (unsigned long)i);
-		if (result) {
-			panic("ll16test: thread_fork failed: %s\n", strerror(result));
-		}
-	}
-	infinite_spinner(0);
+  (void)nargs;
+  (void)args;
 
-	// 09 Jan 2015 : GWA : Shouldn't return.
-	return 0;
+  for (i = 1; i < 16; i++) {
+    result = thread_fork("ll16testthread", NULL, ll16testthread, NULL,
+                         (unsigned long)i);
+    if (result) {
+      panic("ll16test: thread_fork failed: %s\n", strerror(result));
+    }
+  }
+  infinite_spinner(0);
+
+  // 09 Jan 2015 : GWA : Shouldn't return.
+  return 0;
 }

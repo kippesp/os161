@@ -34,73 +34,72 @@
 
 #define TESTSIZE 533
 
-int
-bitmaptest(int nargs, char **args)
+int bitmaptest(int nargs, char** args)
 {
-	struct bitmap *b;
-	char data[TESTSIZE];
-	uint32_t x;
-	int i;
+  struct bitmap* b;
+  char data[TESTSIZE];
+  uint32_t x;
+  int i;
 
-	(void)nargs;
-	(void)args;
+  (void)nargs;
+  (void)args;
 
-	kprintf("Starting bitmap test...\n");
+  kprintf("Starting bitmap test...\n");
 
-	for (i=0; i<TESTSIZE; i++) {
-		data[i] = random()%2;
-	}
+  for (i = 0; i < TESTSIZE; i++) {
+    data[i] = random() % 2;
+  }
 
-	b = bitmap_create(TESTSIZE);
-	KASSERT(b != NULL);
+  b = bitmap_create(TESTSIZE);
+  KASSERT(b != NULL);
 
-	for (i=0; i<TESTSIZE; i++) {
-		KASSERT(bitmap_isset(b, i)==0);
-	}
+  for (i = 0; i < TESTSIZE; i++) {
+    KASSERT(bitmap_isset(b, i) == 0);
+  }
 
-	for (i=0; i<TESTSIZE; i++) {
-		if (data[i]) {
-			bitmap_mark(b, i);
-		}
-	}
-	for (i=0; i<TESTSIZE; i++) {
-		if (data[i]) {
-			KASSERT(bitmap_isset(b, i));
-		}
-		else {
-			KASSERT(bitmap_isset(b, i)==0);
-		}
-	}
+  for (i = 0; i < TESTSIZE; i++) {
+    if (data[i]) {
+      bitmap_mark(b, i);
+    }
+  }
+  for (i = 0; i < TESTSIZE; i++) {
+    if (data[i]) {
+      KASSERT(bitmap_isset(b, i));
+    }
+    else {
+      KASSERT(bitmap_isset(b, i) == 0);
+    }
+  }
 
-	for (i=0; i<TESTSIZE; i++) {
-		if (data[i]) {
-			bitmap_unmark(b, i);
-		}
-		else {
-			bitmap_mark(b, i);
-		}
-	}
-	for (i=0; i<TESTSIZE; i++) {
-		if (data[i]) {
-			KASSERT(bitmap_isset(b, i)==0);
-		}
-		else {
-			KASSERT(bitmap_isset(b, i));
-		}
-	}
+  for (i = 0; i < TESTSIZE; i++) {
+    if (data[i]) {
+      bitmap_unmark(b, i);
+    }
+    else {
+      bitmap_mark(b, i);
+    }
+  }
+  for (i = 0; i < TESTSIZE; i++) {
+    if (data[i]) {
+      KASSERT(bitmap_isset(b, i) == 0);
+    }
+    else {
+      KASSERT(bitmap_isset(b, i));
+    }
+  }
 
-	while (bitmap_alloc(b, &x)==0) {
-		KASSERT(x < TESTSIZE);
-		KASSERT(bitmap_isset(b, x));
-		KASSERT(data[x]==1);
-		data[x] = 0;
-	}
+  while (bitmap_alloc(b, &x) == 0) {
+    KASSERT(x < TESTSIZE);
+    KASSERT(bitmap_isset(b, x));
+    KASSERT(data[x] == 1);
+    data[x] = 0;
+  }
 
-	for (i=0; i<TESTSIZE; i++) {
-		KASSERT(bitmap_isset(b, i));
-		KASSERT(data[i]==0);
-	}
+  for (i = 0; i < TESTSIZE; i++) {
+    KASSERT(bitmap_isset(b, i));
+    KASSERT(data[i] == 0);
+  }
 
-	kprintf("Bitmap test complete\n");
-	return 0;
+  kprintf("Bitmap test complete\n");
+  return 0;
 }

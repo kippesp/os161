@@ -42,235 +42,218 @@
 #define DIM 70
 
 /* number of iterations for sleepalot threads */
-#define SLEEPALOT_PRINTS      20	/* number of printouts */
-#define SLEEPALOT_ITERS       4		/* iterations per printout */
+#define SLEEPALOT_PRINTS 20 /* number of printouts */
+#define SLEEPALOT_ITERS 4   /* iterations per printout */
 /* polling frequency of waker thread */
-#define WAKER_WAKES          100
+#define WAKER_WAKES 100
 /* number of iterations per compute thread */
-#define COMPUTE_ITERS         10
+#define COMPUTE_ITERS 10
 
 /* N distinct wait channels */
 #define NWAITCHANS 12
 static struct spinlock spinlocks[NWAITCHANS];
-static struct wchan *waitchans[NWAITCHANS];
+static struct wchan* waitchans[NWAITCHANS];
 
 static volatile int wakerdone;
-static struct semaphore *wakersem;
-static struct semaphore *donesem;
+static struct semaphore* wakersem;
+static struct semaphore* donesem;
 
-static
-void
-setup(void)
+static void setup(void)
 {
-	char tmp[16];
-	int i;
+  char tmp[16];
+  int i;
 
-	if (wakersem == NULL) {
-		wakersem = sem_create("wakersem", 1);
-		donesem = sem_create("donesem", 0);
-		for (i=0; i<NWAITCHANS; i++) {
-			spinlock_init(&spinlocks[i]);
-			snprintf(tmp, sizeof(tmp), "wc%d", i);
-			waitchans[i] = wchan_create(kstrdup(tmp));
-		}
-	}
-	wakerdone = 0;
+  if (wakersem == NULL) {
+    wakersem = sem_create("wakersem", 1);
+    donesem = sem_create("donesem", 0);
+    for (i = 0; i < NWAITCHANS; i++) {
+      spinlock_init(&spinlocks[i]);
+      snprintf(tmp, sizeof(tmp), "wc%d", i);
+      waitchans[i] = wchan_create(kstrdup(tmp));
+    }
+  }
+  wakerdone = 0;
 }
 
-static
-void
-sleepalot_thread(void *junk, unsigned long num)
+static void sleepalot_thread(void* junk, unsigned long num)
 {
-	int i, j;
+  int i, j;
 
-	(void)junk;
+  (void)junk;
 
-	for (i=0; i<SLEEPALOT_PRINTS; i++) {
-		for (j=0; j<SLEEPALOT_ITERS; j++) {
-			unsigned n;
-			struct spinlock *lk;
-			struct wchan *wc;
+  for (i = 0; i < SLEEPALOT_PRINTS; i++) {
+    for (j = 0; j < SLEEPALOT_ITERS; j++) {
+      unsigned n;
+      struct spinlock* lk;
+      struct wchan* wc;
 
-			n = random() % NWAITCHANS;
-			lk = &spinlocks[n];
-			wc = waitchans[n];
-			spinlock_acquire(lk);
-			wchan_sleep(wc, lk);
-			spinlock_release(lk);
-		}
-		kprintf("[%lu]", num);
-	}
-	V(donesem);
+      n = random() % NWAITCHANS;
+      lk = &spinlocks[n];
+      wc = waitchans[n];
+      spinlock_acquire(lk);
+      wchan_sleep(wc, lk);
+      spinlock_release(lk);
+    }
+    kprintf("[%lu]", num);
+  }
+  V(donesem);
 }
 
-static
-void
-waker_thread(void *junk1, unsigned long junk2)
+static void waker_thread(void* junk1, unsigned long junk2)
 {
-	int i, done;
+  int i, done;
 
-	(void)junk1;
-	(void)junk2;
+  (void)junk1;
+  (void)junk2;
 
-	while (1) {
-		P(wakersem);
-		done = wakerdone;
-		V(wakersem);
-		if (done) {
-			break;
-		}
+  while (1) {
+    P(wakersem);
+    done = wakerdone;
+    V(wakersem);
+    if (done) {
+      break;
+    }
 
-		for (i=0; i<WAKER_WAKES; i++) {
-			unsigned n;
-			struct spinlock *lk;
-			struct wchan *wc;
+    for (i = 0; i < WAKER_WAKES; i++) {
+      unsigned n;
+      struct spinlock* lk;
+      struct wchan* wc;
 
-			n = random() % NWAITCHANS;
-			lk = &spinlocks[n];
-			wc = waitchans[n];
-			spinlock_acquire(lk);
-			wchan_wakeall(wc, lk);
-			spinlock_release(lk);
+      n = random() % NWAITCHANS;
+      lk = &spinlocks[n];
+      wc = waitchans[n];
+      spinlock_acquire(lk);
+      wchan_wakeall(wc, lk);
+      spinlock_release(lk);
 
-			thread_yield();
-		}
-	}
-	V(donesem);
+      thread_yield();
+    }
+  }
+  V(donesem);
 }
 
-static
-void
-make_sleepalots(int howmany)
+static void make_sleepalots(int howmany)
 {
-	char name[16];
-	int i, result;
+  char name[16];
+  int i, result;
 
-	for (i=0; i<howmany; i++) {
-		snprintf(name, sizeof(name), "sleepalot%d", i);
-		result = thread_fork(name, NULL, sleepalot_thread, NULL, i);
-		if (result) {
-			panic("thread_fork failed: %s\n", strerror(result));
-		}
-	}
-	result = thread_fork("waker", NULL, waker_thread, NULL, 0);
-	if (result) {
-		panic("thread_fork failed: %s\n", strerror(result));
-	}
+  for (i = 0; i < howmany; i++) {
+    snprintf(name, sizeof(name), "sleepalot%d", i);
+    result = thread_fork(name, NULL, sleepalot_thread, NULL, i);
+    if (result) {
+      panic("thread_fork failed: %s\n", strerror(result));
+    }
+  }
+  result = thread_fork("waker", NULL, waker_thread, NULL, 0);
+  if (result) {
+    panic("thread_fork failed: %s\n", strerror(result));
+  }
 }
 
-static
-void
-compute_thread(void *junk1, unsigned long num)
+static void compute_thread(void* junk1, unsigned long num)
 {
-	struct matrix {
-		char m[DIM][DIM];
-	};
-	struct matrix *m1, *m2, *m3;
-	unsigned char tot;
-	int i, j, k, m;
-	uint32_t rand;
+  struct matrix {
+    char m[DIM][DIM];
+  };
+  struct matrix *m1, *m2, *m3;
+  unsigned char tot;
+  int i, j, k, m;
+  uint32_t rand;
 
-	(void)junk1;
+  (void)junk1;
 
-	m1 = kmalloc(sizeof(struct matrix));
-	KASSERT(m1 != NULL);
-	m2 = kmalloc(sizeof(struct matrix));
-	KASSERT(m2 != NULL);
-	m3 = kmalloc(sizeof(struct matrix));
-	KASSERT(m3 != NULL);
+  m1 = kmalloc(sizeof(struct matrix));
+  KASSERT(m1 != NULL);
+  m2 = kmalloc(sizeof(struct matrix));
+  KASSERT(m2 != NULL);
+  m3 = kmalloc(sizeof(struct matrix));
+  KASSERT(m3 != NULL);
 
-	for (m=0; m<COMPUTE_ITERS; m++) {
+  for (m = 0; m < COMPUTE_ITERS; m++) {
+    for (i = 0; i < DIM; i++) {
+      for (j = 0; j < DIM; j++) {
+        rand = random();
+        m1->m[i][j] = rand >> 16;
+        m2->m[i][j] = rand & 0xffff;
+      }
+    }
 
-		for (i=0; i<DIM; i++) {
-			for (j=0; j<DIM; j++) {
-				rand = random();
-				m1->m[i][j] = rand >> 16;
-				m2->m[i][j] = rand & 0xffff;
-			}
-		}
+    for (i = 0; i < DIM; i++) {
+      for (j = 0; j < DIM; j++) {
+        tot = 0;
+        for (k = 0; k < DIM; k++) {
+          tot += m1->m[i][k] * m2->m[k][j];
+        }
+        m3->m[i][j] = tot;
+      }
+    }
 
-		for (i=0; i<DIM; i++) {
-			for (j=0; j<DIM; j++) {
-				tot = 0;
-				for (k=0; k<DIM; k++) {
-					tot += m1->m[i][k] * m2->m[k][j];
-				}
-				m3->m[i][j] = tot;
-			}
-		}
+    tot = 0;
+    for (i = 0; i < DIM; i++) {
+      tot += m3->m[i][i];
+    }
 
-		tot = 0;
-		for (i=0; i<DIM; i++) {
-			tot += m3->m[i][i];
-		}
+    kprintf("{%lu: %u}", num, (unsigned)tot);
+    thread_yield();
+  }
 
-		kprintf("{%lu: %u}", num, (unsigned) tot);
-		thread_yield();
-	}
+  kfree(m1);
+  kfree(m2);
+  kfree(m3);
 
-	kfree(m1);
-	kfree(m2);
-	kfree(m3);
-
-	V(donesem);
+  V(donesem);
 }
 
-static
-void
-make_computes(int howmany)
+static void make_computes(int howmany)
 {
-	char name[16];
-	int i, result;
+  char name[16];
+  int i, result;
 
-	for (i=0; i<howmany; i++) {
-		snprintf(name, sizeof(name), "compute%d", i);
-		result = thread_fork(name, NULL, compute_thread, NULL, i);
-		if (result) {
-			panic("thread_fork failed: %s\n", strerror(result));
-		}
-	}
+  for (i = 0; i < howmany; i++) {
+    snprintf(name, sizeof(name), "compute%d", i);
+    result = thread_fork(name, NULL, compute_thread, NULL, i);
+    if (result) {
+      panic("thread_fork failed: %s\n", strerror(result));
+    }
+  }
 }
 
-static
-void
-finish(int howmanytotal)
+static void finish(int howmanytotal)
 {
-	int i;
-	for (i=0; i<howmanytotal; i++) {
-		P(donesem);
-	}
-	P(wakersem);
-	wakerdone = 1;
-	V(wakersem);
-	P(donesem);
+  int i;
+  for (i = 0; i < howmanytotal; i++) {
+    P(donesem);
+  }
+  P(wakersem);
+  wakerdone = 1;
+  V(wakersem);
+  P(donesem);
 }
 
-static
-void
-runtest3(int nsleeps, int ncomputes)
+static void runtest3(int nsleeps, int ncomputes)
 {
-	setup();
-	kprintf("Starting thread test 3 (%d [sleepalots], %d {computes}, "
-		"1 waker)\n",
-		nsleeps, ncomputes);
-	make_sleepalots(nsleeps);
-	make_computes(ncomputes);
-	finish(nsleeps+ncomputes);
-	kprintf("\nThread test 3 done\n");
+  setup();
+  kprintf(
+      "Starting thread test 3 (%d [sleepalots], %d {computes}, "
+      "1 waker)\n",
+      nsleeps, ncomputes);
+  make_sleepalots(nsleeps);
+  make_computes(ncomputes);
+  finish(nsleeps + ncomputes);
+  kprintf("\nThread test 3 done\n");
 }
 
-int
-threadtest3(int nargs, char **args)
+int threadtest3(int nargs, char** args)
 {
-	if (nargs==1) {
-		runtest3(5, 2);
-	}
-	else if (nargs==3) {
-		runtest3(atoi(args[1]), atoi(args[2]));
-	}
-	else {
-		kprintf("Usage: tt3 [sleepthreads computethreads]\n");
-		return 1;
-	}
-	return 0;
+  if (nargs == 1) {
+    runtest3(5, 2);
+  }
+  else if (nargs == 3) {
+    runtest3(atoi(args[1]), atoi(args[2]));
+  }
+  else {
+    kprintf("Usage: tt3 [sleepthreads computethreads]\n");
+    return 1;
+  }
+  return 0;
 }
