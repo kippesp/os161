@@ -47,112 +47,102 @@
  * available.
  */
 
-static struct random_softc *the_random = NULL;
+static struct random_softc* the_random = NULL;
 
 /*
  * VFS device functions.
  * open: allow reading only.
  */
-static
-int
-randeachopen(struct device *dev, int openflags)
+static int randeachopen(struct device* dev, int openflags)
 {
-	(void)dev;
+  (void)dev;
 
-	if (openflags != O_RDONLY) {
-		return EIO;
-	}
+  if (openflags != O_RDONLY) {
+    return EIO;
+  }
 
-	return 0;
+  return 0;
 }
 
 /*
  * VFS I/O function. Hand off to implementation.
  */
-static
-int
-randio(struct device *dev, struct uio *uio)
+static int randio(struct device* dev, struct uio* uio)
 {
-	struct random_softc *rs = dev->d_data;
+  struct random_softc* rs = dev->d_data;
 
-	if (uio->uio_rw != UIO_READ) {
-		return EIO;
-	}
+  if (uio->uio_rw != UIO_READ) {
+    return EIO;
+  }
 
-	return rs->rs_read(rs->rs_devdata, uio);
+  return rs->rs_read(rs->rs_devdata, uio);
 }
 
 /*
  * VFS ioctl function.
  */
-static
-int
-randioctl(struct device *dev, int op, userptr_t data)
+static int randioctl(struct device* dev, int op, userptr_t data)
 {
-	/*
-	 * We don't support any ioctls.
-	 */
-	(void)dev;
-	(void)op;
-	(void)data;
-	return EIOCTL;
+  /*
+   * We don't support any ioctls.
+   */
+  (void)dev;
+  (void)op;
+  (void)data;
+  return EIOCTL;
 }
 
 static const struct device_ops random_devops = {
-	.devop_eachopen = randeachopen,
-	.devop_io = randio,
-	.devop_ioctl = randioctl,
+    .devop_eachopen = randeachopen,
+    .devop_io = randio,
+    .devop_ioctl = randioctl,
 };
 
 /*
  * Config function.
  */
-int
-config_random(struct random_softc *rs, int unit)
+int config_random(struct random_softc* rs, int unit)
 {
-	int result;
+  int result;
 
-	/* We use only the first random device. */
-	if (unit!=0) {
-		return ENODEV;
-	}
+  /* We use only the first random device. */
+  if (unit != 0) {
+    return ENODEV;
+  }
 
-	KASSERT(the_random==NULL);
-	the_random = rs;
+  KASSERT(the_random == NULL);
+  the_random = rs;
 
-	rs->rs_dev.d_ops = &random_devops;
-	rs->rs_dev.d_blocks = 0;
-	rs->rs_dev.d_blocksize = 1;
-	rs->rs_dev.d_data = rs;
+  rs->rs_dev.d_ops = &random_devops;
+  rs->rs_dev.d_blocks = 0;
+  rs->rs_dev.d_blocksize = 1;
+  rs->rs_dev.d_data = rs;
 
-	/* Add the VFS device structure to the VFS device list. */
-	result = vfs_adddev("random", &rs->rs_dev, 0);
-	if (result) {
-		return result;
-	}
+  /* Add the VFS device structure to the VFS device list. */
+  result = vfs_adddev("random", &rs->rs_dev, 0);
+  if (result) {
+    return result;
+  }
 
-	return 0;
+  return 0;
 }
-
 
 /*
  * Random number functions exported to the rest of the kernel.
  */
 
-uint32_t
-random(void)
+uint32_t random(void)
 {
-	if (the_random==NULL) {
-		panic("No random device\n");
-	}
-	return the_random->rs_random(the_random->rs_devdata);
+  if (the_random == NULL) {
+    panic("No random device\n");
+  }
+  return the_random->rs_random(the_random->rs_devdata);
 }
 
-uint32_t
-randmax(void)
+uint32_t randmax(void)
 {
-	if (the_random==NULL) {
-		panic("No random device\n");
-	}
-	return the_random->rs_randmax(the_random->rs_devdata);
+  if (the_random == NULL) {
+    panic("No random device\n");
+  }
+  return the_random->rs_randmax(the_random->rs_devdata);
 }

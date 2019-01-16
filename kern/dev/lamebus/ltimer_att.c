@@ -37,34 +37,34 @@
 #include "autoconf.h"
 
 /* Lowest revision we support */
-#define LOW_VERSION   1
+#define LOW_VERSION 1
 
-struct ltimer_softc *
-attach_ltimer_to_lamebus(int ltimerno, struct lamebus_softc *sc)
+struct ltimer_softc* attach_ltimer_to_lamebus(int ltimerno,
+                                              struct lamebus_softc* sc)
 {
-	struct ltimer_softc *lt;
-	int slot = lamebus_probe(sc, LB_VENDOR_CS161, LBCS161_TIMER,
-				 LOW_VERSION, NULL);
-	if (slot < 0) {
-		/* No ltimer (or no additional ltimer) found */
-		return NULL;
-	}
+  struct ltimer_softc* lt;
+  int slot =
+      lamebus_probe(sc, LB_VENDOR_CS161, LBCS161_TIMER, LOW_VERSION, NULL);
+  if (slot < 0) {
+    /* No ltimer (or no additional ltimer) found */
+    return NULL;
+  }
 
-	lt = kmalloc(sizeof(struct ltimer_softc));
-	if (lt==NULL) {
-		/* out of memory */
-		return NULL;
-	}
+  lt = kmalloc(sizeof(struct ltimer_softc));
+  if (lt == NULL) {
+    /* out of memory */
+    return NULL;
+  }
 
-	(void)ltimerno;  // unused
+  (void)ltimerno;  // unused
 
-	/* Record what bus it's on */
-	lt->lt_bus = sc;
-	lt->lt_buspos = slot;
+  /* Record what bus it's on */
+  lt->lt_bus = sc;
+  lt->lt_buspos = slot;
 
-	/* Mark the slot in use and hook that slot's interrupt */
-	lamebus_mark(sc, slot);
-	lamebus_attach_interrupt(sc, slot, lt, ltimer_irq);
+  /* Mark the slot in use and hook that slot's interrupt */
+  lamebus_mark(sc, slot);
+  lamebus_attach_interrupt(sc, slot, lt, ltimer_irq);
 
-	return lt;
+  return lt;
 }

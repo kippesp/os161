@@ -40,74 +40,71 @@
 /*
  * Constructor for semfs_sem.
  */
-struct semfs_sem *
-semfs_sem_create(const char *name)
+struct semfs_sem* semfs_sem_create(const char* name)
 {
-	struct semfs_sem *sem;
-	char lockname[32];
-	char cvname[32];
+  struct semfs_sem* sem;
+  char lockname[32];
+  char cvname[32];
 
-	snprintf(lockname, sizeof(lockname), "sem:l.%s", name);
-	snprintf(cvname, sizeof(cvname), "sem:%s", name);
+  snprintf(lockname, sizeof(lockname), "sem:l.%s", name);
+  snprintf(cvname, sizeof(cvname), "sem:%s", name);
 
-	sem = kmalloc(sizeof(*sem));
-	if (sem == NULL) {
-		goto fail_return;
-	}
-	sem->sems_lock = lock_create(lockname);
-	if (sem->sems_lock == NULL) {
-		goto fail_sem;
-	}
-	sem->sems_cv = cv_create(cvname);
-	if (sem->sems_cv == NULL) {
-		goto fail_lock;
-	}
-	sem->sems_count = 0;
-	sem->sems_hasvnode = false;
-	sem->sems_linked = false;
-	return sem;
+  sem = kmalloc(sizeof(*sem));
+  if (sem == NULL) {
+    goto fail_return;
+  }
+  sem->sems_lock = lock_create(lockname);
+  if (sem->sems_lock == NULL) {
+    goto fail_sem;
+  }
+  sem->sems_cv = cv_create(cvname);
+  if (sem->sems_cv == NULL) {
+    goto fail_lock;
+  }
+  sem->sems_count = 0;
+  sem->sems_hasvnode = false;
+  sem->sems_linked = false;
+  return sem;
 
- fail_lock:
-	lock_destroy(sem->sems_lock);
- fail_sem:
-	kfree(sem);
- fail_return:
-	return NULL;
+fail_lock:
+  lock_destroy(sem->sems_lock);
+fail_sem:
+  kfree(sem);
+fail_return:
+  return NULL;
 }
 
 /*
  * Destructor for semfs_sem.
  */
-void
-semfs_sem_destroy(struct semfs_sem *sem)
+void semfs_sem_destroy(struct semfs_sem* sem)
 {
-	cv_destroy(sem->sems_cv);
-	lock_destroy(sem->sems_lock);
-	kfree(sem);
+  cv_destroy(sem->sems_cv);
+  lock_destroy(sem->sems_lock);
+  kfree(sem);
 }
 
 /*
  * Helper to insert a semfs_sem into the semaphore table.
  */
-int
-semfs_sem_insert(struct semfs *semfs, struct semfs_sem *sem, unsigned *ret)
+int semfs_sem_insert(struct semfs* semfs, struct semfs_sem* sem, unsigned* ret)
 {
-	unsigned i, num;
+  unsigned i, num;
 
-	KASSERT(lock_do_i_hold(semfs->semfs_tablelock));
-	num = semfs_semarray_num(semfs->semfs_sems);
-	if (num == SEMFS_ROOTDIR) {
-		/* Too many */
-		return ENOSPC;
-	}
-	for (i=0; i<num; i++) {
-		if (semfs_semarray_get(semfs->semfs_sems, i) == NULL) {
-			semfs_semarray_set(semfs->semfs_sems, i, sem);
-			*ret = i;
-			return 0;
-		}
-	}
-	return semfs_semarray_add(semfs->semfs_sems, sem, ret);
+  KASSERT(lock_do_i_hold(semfs->semfs_tablelock));
+  num = semfs_semarray_num(semfs->semfs_sems);
+  if (num == SEMFS_ROOTDIR) {
+    /* Too many */
+    return ENOSPC;
+  }
+  for (i = 0; i < num; i++) {
+    if (semfs_semarray_get(semfs->semfs_sems, i) == NULL) {
+      semfs_semarray_set(semfs->semfs_sems, i, sem);
+      *ret = i;
+      return 0;
+    }
+  }
+  return semfs_semarray_add(semfs->semfs_sems, sem, ret);
 }
 
 ////////////////////////////////////////////////////////////
@@ -116,30 +113,28 @@ semfs_sem_insert(struct semfs *semfs, struct semfs_sem *sem, unsigned *ret)
 /*
  * Constructor for semfs_direntry.
  */
-struct semfs_direntry *
-semfs_direntry_create(const char *name, unsigned semnum)
+struct semfs_direntry* semfs_direntry_create(const char* name, unsigned semnum)
 {
-	struct semfs_direntry *dent;
+  struct semfs_direntry* dent;
 
-	dent = kmalloc(sizeof(*dent));
-	if (dent == NULL) {
-		return NULL;
-	}
-	dent->semd_name = kstrdup(name);
-	if (dent->semd_name == NULL) {
-		kfree(dent);
-		return NULL;
-	}
-	dent->semd_semnum = semnum;
-	return dent;
+  dent = kmalloc(sizeof(*dent));
+  if (dent == NULL) {
+    return NULL;
+  }
+  dent->semd_name = kstrdup(name);
+  if (dent->semd_name == NULL) {
+    kfree(dent);
+    return NULL;
+  }
+  dent->semd_semnum = semnum;
+  return dent;
 }
 
 /*
  * Destructor for semfs_direntry.
  */
-void
-semfs_direntry_destroy(struct semfs_direntry *dent)
+void semfs_direntry_destroy(struct semfs_direntry* dent)
 {
-	kfree(dent->semd_name);
-	kfree(dent);
+  kfree(dent->semd_name);
+  kfree(dent);
 }

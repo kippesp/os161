@@ -41,63 +41,57 @@
 /*
  * Zero out a disk block.
  */
-static
-int
-sfs_clearblock(struct sfs_fs *sfs, daddr_t block)
+static int sfs_clearblock(struct sfs_fs* sfs, daddr_t block)
 {
-	/* static -> automatically initialized to zero */
-	static char zeros[SFS_BLOCKSIZE];
+  /* static -> automatically initialized to zero */
+  static char zeros[SFS_BLOCKSIZE];
 
-	return sfs_writeblock(sfs, block, zeros, SFS_BLOCKSIZE);
+  return sfs_writeblock(sfs, block, zeros, SFS_BLOCKSIZE);
 }
 
 /*
  * Allocate a block.
  */
-int
-sfs_balloc(struct sfs_fs *sfs, daddr_t *diskblock)
+int sfs_balloc(struct sfs_fs* sfs, daddr_t* diskblock)
 {
-	int result;
+  int result;
 
-	result = bitmap_alloc(sfs->sfs_freemap, diskblock);
-	if (result) {
-		return result;
-	}
-	sfs->sfs_freemapdirty = true;
+  result = bitmap_alloc(sfs->sfs_freemap, diskblock);
+  if (result) {
+    return result;
+  }
+  sfs->sfs_freemapdirty = true;
 
-	if (*diskblock >= sfs->sfs_sb.sb_nblocks) {
-		panic("sfs: %s: balloc: invalid block %u\n",
-		      sfs->sfs_sb.sb_volname, *diskblock);
-	}
+  if (*diskblock >= sfs->sfs_sb.sb_nblocks) {
+    panic("sfs: %s: balloc: invalid block %u\n", sfs->sfs_sb.sb_volname,
+          *diskblock);
+  }
 
-	/* Clear block before returning it */
-	result = sfs_clearblock(sfs, *diskblock);
-	if (result) {
-		bitmap_unmark(sfs->sfs_freemap, *diskblock);
-	}
-	return result;
+  /* Clear block before returning it */
+  result = sfs_clearblock(sfs, *diskblock);
+  if (result) {
+    bitmap_unmark(sfs->sfs_freemap, *diskblock);
+  }
+  return result;
 }
 
 /*
  * Free a block.
  */
-void
-sfs_bfree(struct sfs_fs *sfs, daddr_t diskblock)
+void sfs_bfree(struct sfs_fs* sfs, daddr_t diskblock)
 {
-	bitmap_unmark(sfs->sfs_freemap, diskblock);
-	sfs->sfs_freemapdirty = true;
+  bitmap_unmark(sfs->sfs_freemap, diskblock);
+  sfs->sfs_freemapdirty = true;
 }
 
 /*
  * Check if a block is in use.
  */
-int
-sfs_bused(struct sfs_fs *sfs, daddr_t diskblock)
+int sfs_bused(struct sfs_fs* sfs, daddr_t diskblock)
 {
-	if (diskblock >= sfs->sfs_sb.sb_nblocks) {
-		panic("sfs: %s: sfs_bused called on out of range block %u\n",
-		      sfs->sfs_sb.sb_volname, diskblock);
-	}
-	return bitmap_isset(sfs->sfs_freemap, diskblock);
+  if (diskblock >= sfs->sfs_sb.sb_nblocks) {
+    panic("sfs: %s: sfs_bused called on out of range block %u\n",
+          sfs->sfs_sb.sb_volname, diskblock);
+  }
+  return bitmap_isset(sfs->sfs_freemap, diskblock);
 }
-

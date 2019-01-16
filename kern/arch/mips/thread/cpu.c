@@ -72,30 +72,29 @@ vaddr_t cputhreads[MAXCPUS];
  * associated with a new cpu. Note that we're not running on the new
  * cpu when this is called.
  */
-void
-cpu_machdep_init(struct cpu *c)
+void cpu_machdep_init(struct cpu* c)
 {
-	vaddr_t stackpointer;
+  vaddr_t stackpointer;
 
-	KASSERT(c->c_number < MAXCPUS);
+  KASSERT(c->c_number < MAXCPUS);
 
-	if (c->c_curthread->t_stack == NULL) {
-		/* boot cpu; don't need to do anything here */
-	}
-	else {
-		/*
-		 * Stick the stack in cpustacks[], and thread pointer
-		 * in cputhreads[].
-		 */
+  if (c->c_curthread->t_stack == NULL) {
+    /* boot cpu; don't need to do anything here */
+  }
+  else {
+    /*
+     * Stick the stack in cpustacks[], and thread pointer
+     * in cputhreads[].
+     */
 
-		/* stack base address */
-		stackpointer = (vaddr_t) c->c_curthread->t_stack;
-		/* since stacks grow down, get the top */
-		stackpointer += STACK_SIZE;
+    /* stack base address */
+    stackpointer = (vaddr_t)c->c_curthread->t_stack;
+    /* since stacks grow down, get the top */
+    stackpointer += STACK_SIZE;
 
-		cpustacks[c->c_number] = stackpointer;
-		cputhreads[c->c_number] = (vaddr_t)c->c_curthread;
-	}
+    cpustacks[c->c_number] = stackpointer;
+    cputhreads[c->c_number] = (vaddr_t)c->c_curthread;
+  }
 }
 
 ////////////////////////////////////////////////////////////
@@ -107,73 +106,68 @@ cpu_machdep_init(struct cpu *c)
  * System/161 processor-ID values.
  */
 
-#define SYS161_PRID_ORIG	0x000003ff
-#define SYS161_PRID_2X		0x000000a1
+#define SYS161_PRID_ORIG 0x000003ff
+#define SYS161_PRID_2X 0x000000a1
 
-static inline
-uint32_t
-cpu_getprid(void)
+static inline uint32_t cpu_getprid(void)
 {
-	uint32_t prid;
+  uint32_t prid;
 
-	__asm volatile("mfc0 %0,$15" : "=r" (prid));
-	return prid;
+  __asm volatile("mfc0 %0,$15" : "=r"(prid));
+  return prid;
 }
 
-static inline
-uint32_t
-cpu_getfeatures(void)
+static inline uint32_t cpu_getfeatures(void)
 {
-	uint32_t features;
+  uint32_t features;
 
-	__asm volatile(".set push;"		/* save assembler mode */
-		       ".set mips32;"		/* allow mips32 instructions */
-		       "mfc0 %0,$15,1;"		/* get cop0 reg 15 sel 1 */
-		       ".set pop"		/* restore assembler mode */
-		       : "=r" (features));
-	return features;
+  __asm volatile(
+      ".set push;"     /* save assembler mode */
+      ".set mips32;"   /* allow mips32 instructions */
+      "mfc0 %0,$15,1;" /* get cop0 reg 15 sel 1 */
+      ".set pop"       /* restore assembler mode */
+      : "=r"(features));
+  return features;
 }
 
-static inline
-uint32_t
-cpu_getifeatures(void)
+static inline uint32_t cpu_getifeatures(void)
 {
-	uint32_t features;
+  uint32_t features;
 
-	__asm volatile(".set push;"		/* save assembler mode */
-		       ".set mips32;"		/* allow mips32 instructions */
-		       "mfc0 %0,$15,2;"		/* get cop0 reg 15 sel 2 */
-		       ".set pop"		/* restore assembler mode */
-		       : "=r" (features));
-	return features;
+  __asm volatile(
+      ".set push;"     /* save assembler mode */
+      ".set mips32;"   /* allow mips32 instructions */
+      "mfc0 %0,$15,2;" /* get cop0 reg 15 sel 2 */
+      ".set pop"       /* restore assembler mode */
+      : "=r"(features));
+  return features;
 }
 
-void
-cpu_identify(char *buf, size_t max)
+void cpu_identify(char* buf, size_t max)
 {
-	uint32_t prid;
-	uint32_t features;
+  uint32_t prid;
+  uint32_t features;
 
-	prid = cpu_getprid();
-	switch (prid) {
-	    case SYS161_PRID_ORIG:
-		snprintf(buf, max, "MIPS/161 (System/161 1.x and pre-2.x)");
-		break;
-	    case SYS161_PRID_2X:
-		features = cpu_getfeatures();
-		snprintf(buf, max, "MIPS/161 (System/161 2.x) features 0x%x",
-			 features);
-		features = cpu_getifeatures();
-		if (features != 0) {
-			kprintf("WARNING: unknown CPU incompatible features "
-				"0x%x\n", features);
-		}
-		break;
-	    default:
-		snprintf(buf, max, "32-bit MIPS (unknown type, CPU ID 0x%x)",
-			 prid);
-		break;
-	}
+  prid = cpu_getprid();
+  switch (prid) {
+    case SYS161_PRID_ORIG:
+      snprintf(buf, max, "MIPS/161 (System/161 1.x and pre-2.x)");
+      break;
+    case SYS161_PRID_2X:
+      features = cpu_getfeatures();
+      snprintf(buf, max, "MIPS/161 (System/161 2.x) features 0x%x", features);
+      features = cpu_getifeatures();
+      if (features != 0) {
+        kprintf(
+            "WARNING: unknown CPU incompatible features "
+            "0x%x\n",
+            features);
+      }
+      break;
+    default:
+      snprintf(buf, max, "32-bit MIPS (unknown type, CPU ID 0x%x)", prid);
+      break;
+  }
 }
 
 ////////////////////////////////////////////////////////////
@@ -200,50 +194,46 @@ cpu_identify(char *buf, size_t max)
  * These considerations do not (currently) apply to System/161,
  * however.
  */
-#define GET_STATUS(x) __asm volatile("mfc0 %0,$12" : "=r" (x))
-#define SET_STATUS(x) __asm volatile("mtc0 %0,$12" :: "r" (x))
+#define GET_STATUS(x) __asm volatile("mfc0 %0,$12" : "=r"(x))
+#define SET_STATUS(x) __asm volatile("mtc0 %0,$12" ::"r"(x))
 
 /*
  * Interrupts on.
  */
-void
-cpu_irqon(void)
+void cpu_irqon(void)
 {
-        uint32_t x;
+  uint32_t x;
 
-        GET_STATUS(x);
-        x |= CST_IEc;
-        SET_STATUS(x);
+  GET_STATUS(x);
+  x |= CST_IEc;
+  SET_STATUS(x);
 }
 
 /*
  * Interrupts off.
  */
-void
-cpu_irqoff(void)
+void cpu_irqoff(void)
 {
-        uint32_t x;
+  uint32_t x;
 
-        GET_STATUS(x);
-        x &= ~(uint32_t)CST_IEc;
-        SET_STATUS(x);
+  GET_STATUS(x);
+  x &= ~(uint32_t)CST_IEc;
+  SET_STATUS(x);
 }
 
 /*
  * Used below.
  */
-static
-void
-cpu_irqonoff(void)
+static void cpu_irqonoff(void)
 {
-        uint32_t x, xon, xoff;
+  uint32_t x, xon, xoff;
 
-        GET_STATUS(x);
-        xon = x | CST_IEc;
-        xoff = x & ~(uint32_t)CST_IEc;
-        SET_STATUS(xon);
-	__asm volatile("nop; nop; nop; nop");
-        SET_STATUS(xoff);
+  GET_STATUS(x);
+  xon = x | CST_IEc;
+  xoff = x & ~(uint32_t)CST_IEc;
+  SET_STATUS(xon);
+  __asm volatile("nop; nop; nop; nop");
+  SET_STATUS(xoff);
 }
 
 ////////////////////////////////////////////////////////////
@@ -261,49 +251,44 @@ cpu_irqonoff(void)
  * appropriate the mips32 WAIT instruction.
  */
 
-static
-inline
-void
-wait(void)
+static inline void wait(void)
 {
-	/*
-	 * The WAIT instruction goes into powersave mode until an
-	 * interrupt is trying to occur.
-	 *
-	 * Then switch interrupts on and off again, so we actually
-	 * take the interrupt.
-	 *
-	 * Note that the precise behavior of this instruction in the
-	 * System/161 simulator is partly guesswork. This code may not
-	 * work on a real mips.
-	 */
-	__asm volatile(
-		".set push;"		/* save assembler mode */
-		".set mips32;"		/* allow MIPS32 instructions */
-		".set volatile;"	/* avoid unwanted optimization */
-		"wait;"			/* suspend until interrupted */
-		".set pop"		/* restore assembler mode */
-	      );
+  /*
+   * The WAIT instruction goes into powersave mode until an
+   * interrupt is trying to occur.
+   *
+   * Then switch interrupts on and off again, so we actually
+   * take the interrupt.
+   *
+   * Note that the precise behavior of this instruction in the
+   * System/161 simulator is partly guesswork. This code may not
+   * work on a real mips.
+   */
+  __asm volatile(
+      ".set push;"     /* save assembler mode */
+      ".set mips32;"   /* allow MIPS32 instructions */
+      ".set volatile;" /* avoid unwanted optimization */
+      "wait;"          /* suspend until interrupted */
+      ".set pop"       /* restore assembler mode */
+  );
 }
 
 /*
  * Idle the processor until something happens.
  */
-void
-cpu_idle(void)
+void cpu_idle(void)
 {
-	wait();
-        cpu_irqonoff();
+  wait();
+  cpu_irqonoff();
 }
 
 /*
  * Halt the CPU permanently.
  */
-void
-cpu_halt(void)
+void cpu_halt(void)
 {
-        cpu_irqoff();
-        while (1) {
-		wait();
-        }
+  cpu_irqoff();
+  while (1) {
+    wait();
+  }
 }

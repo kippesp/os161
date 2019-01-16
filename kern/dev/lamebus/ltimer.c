@@ -39,92 +39,89 @@
 #include "autoconf.h"
 
 /* Registers (offsets within slot) */
-#define LT_REG_SEC    0     /* time of day: seconds */
-#define LT_REG_NSEC   4     /* time of day: nanoseconds */
-#define LT_REG_ROE    8     /* Restart On countdown-timer Expiry flag */
-#define LT_REG_IRQ    12    /* Interrupt status register */
-#define LT_REG_COUNT  16    /* Time for countdown timer (usec) */
-#define LT_REG_SPKR   20    /* Beep control */
+#define LT_REG_SEC 0    /* time of day: seconds */
+#define LT_REG_NSEC 4   /* time of day: nanoseconds */
+#define LT_REG_ROE 8    /* Restart On countdown-timer Expiry flag */
+#define LT_REG_IRQ 12   /* Interrupt status register */
+#define LT_REG_COUNT 16 /* Time for countdown timer (usec) */
+#define LT_REG_SPKR 20  /* Beep control */
 
 /* Granularity of countdown timer (usec) */
-#define LT_GRANULARITY   1000000
+#define LT_GRANULARITY 1000000
 
 static bool havetimerclock;
 
 /*
  * Setup routine called by autoconf stuff when an ltimer is found.
  */
-int
-config_ltimer(struct ltimer_softc *lt, int ltimerno)
+int config_ltimer(struct ltimer_softc* lt, int ltimerno)
 {
-	/*
-	 * Running on System/161 2.x, we always use the processor
-	 * on-chip timer for hardclock and we don't need ltimer as
-	 * hardclock.
-	 *
-	 * Ideally there should be code here that will use an ltimer
-	 * for hardclock if nothing else is available; e.g. if we
-	 * wanted to make OS/161 2.x run on System/161 1.x. However,
-	 * that requires a good bit more infrastructure for handling
-	 * timers than we have and it doesn't seem worthwhile.
-	 *
-	 * It would also require some hacking, because all CPUs need
-	 * to receive timer interrupts. (Exercise: how would you make
-	 * sure all CPUs receive exactly one timer interrupt? Remember
-	 * that LAMEbus uses level-triggered interrupts, so the
-	 * hardware interrupt line will cause repeated interrupts if
-	 * it's not reset on the device; but if it's reset on the
-	 * device before all CPUs manage to see it, those CPUs won't
-	 * be interrupted at all.)
-	 *
-	 * Note that the beep and rtclock devices *do* attach to
-	 * ltimer.
-	 */
-	(void)ltimerno;
-	lt->lt_hardclock = 0;
+  /*
+   * Running on System/161 2.x, we always use the processor
+   * on-chip timer for hardclock and we don't need ltimer as
+   * hardclock.
+   *
+   * Ideally there should be code here that will use an ltimer
+   * for hardclock if nothing else is available; e.g. if we
+   * wanted to make OS/161 2.x run on System/161 1.x. However,
+   * that requires a good bit more infrastructure for handling
+   * timers than we have and it doesn't seem worthwhile.
+   *
+   * It would also require some hacking, because all CPUs need
+   * to receive timer interrupts. (Exercise: how would you make
+   * sure all CPUs receive exactly one timer interrupt? Remember
+   * that LAMEbus uses level-triggered interrupts, so the
+   * hardware interrupt line will cause repeated interrupts if
+   * it's not reset on the device; but if it's reset on the
+   * device before all CPUs manage to see it, those CPUs won't
+   * be interrupted at all.)
+   *
+   * Note that the beep and rtclock devices *do* attach to
+   * ltimer.
+   */
+  (void)ltimerno;
+  lt->lt_hardclock = 0;
 
-	/*
-	 * We do, however, use ltimer for the timer clock, since the
-	 * on-chip timer can't do that.
-	 */
-	if (!havetimerclock) {
-		havetimerclock = true;
-		lt->lt_timerclock = 1;
+  /*
+   * We do, however, use ltimer for the timer clock, since the
+   * on-chip timer can't do that.
+   */
+  if (!havetimerclock) {
+    havetimerclock = true;
+    lt->lt_timerclock = 1;
 
-		/* Wire it to go off once every second. */
-		bus_write_register(lt->lt_bus, lt->lt_buspos, LT_REG_ROE, 1);
-		bus_write_register(lt->lt_bus, lt->lt_buspos, LT_REG_COUNT,
-				   LT_GRANULARITY);
-	}
+    /* Wire it to go off once every second. */
+    bus_write_register(lt->lt_bus, lt->lt_buspos, LT_REG_ROE, 1);
+    bus_write_register(lt->lt_bus, lt->lt_buspos, LT_REG_COUNT, LT_GRANULARITY);
+  }
 
-	return 0;
+  return 0;
 }
 
 /*
  * Interrupt handler.
  */
-void
-ltimer_irq(void *vlt)
+void ltimer_irq(void* vlt)
 {
-	struct ltimer_softc *lt = vlt;
-	uint32_t val;
+  struct ltimer_softc* lt = vlt;
+  uint32_t val;
 
-	val = bus_read_register(lt->lt_bus, lt->lt_buspos, LT_REG_IRQ);
-	if (val) {
-		/*
-		 * Only call hardclock if we're responsible for hardclock.
-		 * (Any additional timer devices are unused.)
-		 */
-		if (lt->lt_hardclock) {
-			hardclock();
-		}
-		/*
-		 * Likewise for timerclock.
-		 */
-		if (lt->lt_timerclock) {
-			timerclock();
-		}
-	}
+  val = bus_read_register(lt->lt_bus, lt->lt_buspos, LT_REG_IRQ);
+  if (val) {
+    /*
+     * Only call hardclock if we're responsible for hardclock.
+     * (Any additional timer devices are unused.)
+     */
+    if (lt->lt_hardclock) {
+      hardclock();
+    }
+    /*
+     * Likewise for timerclock.
+     */
+    if (lt->lt_timerclock) {
+      timerclock();
+    }
+  }
 }
 
 /*
@@ -132,12 +129,11 @@ ltimer_irq(void *vlt)
  * doesn't matter what value you write. This function is called if
  * the beep device is attached to this timer.
  */
-void
-ltimer_beep(void *vlt)
+void ltimer_beep(void* vlt)
 {
-	struct ltimer_softc *lt = vlt;
+  struct ltimer_softc* lt = vlt;
 
-	bus_write_register(lt->lt_bus, lt->lt_buspos, LT_REG_SPKR, 440);
+  bus_write_register(lt->lt_bus, lt->lt_buspos, LT_REG_SPKR, 440);
 }
 
 /*
@@ -145,43 +141,39 @@ ltimer_beep(void *vlt)
  * This function gets called if the rtclock device is attached
  * to this timer.
  */
-void
-ltimer_gettime(void *vlt, struct timespec *ts)
+void ltimer_gettime(void* vlt, struct timespec* ts)
 {
-	struct ltimer_softc *lt = vlt;
-	uint32_t secs1, secs2;
-	int spl;
+  struct ltimer_softc* lt = vlt;
+  uint32_t secs1, secs2;
+  int spl;
 
-	/*
-	 * Read the seconds twice, on either side of the nanoseconds.
-	 * If nsecs is small, use the *later* value of seconds, in case
-	 * the nanoseconds turned over between the time we got the earlier
-	 * value and the time we got nsecs.
-	 *
-	 * Note that the clock in the ltimer device is accurate down
-	 * to a single processor cycle, so this might actually matter
-	 * now and then.
-	 *
-	 * Do it with interrupts off on the current processor to avoid
-	 * getting garbage if we get an interrupt among the register
-	 * reads.
-	 */
+  /*
+   * Read the seconds twice, on either side of the nanoseconds.
+   * If nsecs is small, use the *later* value of seconds, in case
+   * the nanoseconds turned over between the time we got the earlier
+   * value and the time we got nsecs.
+   *
+   * Note that the clock in the ltimer device is accurate down
+   * to a single processor cycle, so this might actually matter
+   * now and then.
+   *
+   * Do it with interrupts off on the current processor to avoid
+   * getting garbage if we get an interrupt among the register
+   * reads.
+   */
 
-	spl = splhigh();
+  spl = splhigh();
 
-	secs1 = bus_read_register(lt->lt_bus, lt->lt_buspos,
-				  LT_REG_SEC);
-	ts->tv_nsec = bus_read_register(lt->lt_bus, lt->lt_buspos,
-				   LT_REG_NSEC);
-	secs2 = bus_read_register(lt->lt_bus, lt->lt_buspos,
-				  LT_REG_SEC);
+  secs1 = bus_read_register(lt->lt_bus, lt->lt_buspos, LT_REG_SEC);
+  ts->tv_nsec = bus_read_register(lt->lt_bus, lt->lt_buspos, LT_REG_NSEC);
+  secs2 = bus_read_register(lt->lt_bus, lt->lt_buspos, LT_REG_SEC);
 
-	splx(spl);
+  splx(spl);
 
-	if (ts->tv_nsec < 5000000) {
-		ts->tv_sec = secs2;
-	}
-	else {
-		ts->tv_sec = secs1;
-	}
+  if (ts->tv_nsec < 5000000) {
+    ts->tv_sec = secs2;
+  }
+  else {
+    ts->tv_sec = secs1;
+  }
 }

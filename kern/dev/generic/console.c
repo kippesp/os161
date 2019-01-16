@@ -63,14 +63,14 @@
 /*
  * The console device.
  */
-static struct con_softc *the_console = NULL;
+static struct con_softc* the_console = NULL;
 
 /*
  * Lock so user I/Os are atomic.
  * We use two locks so readers waiting for input don't lock out writers.
  */
-static struct lock *con_userlock_read = NULL;
-static struct lock *con_userlock_write = NULL;
+static struct lock* con_userlock_read = NULL;
+static struct lock* con_userlock_write = NULL;
 
 //////////////////////////////////////////////////
 
@@ -79,32 +79,28 @@ static struct lock *con_userlock_write = NULL;
  * console is set up. Upon console setup they are dumped
  * to the actual console; thenceforth this space is unused.
  */
-#define DELAYBUFSIZE  1024
+#define DELAYBUFSIZE 1024
 static char delayed_outbuf[DELAYBUFSIZE];
-static size_t delayed_outbuf_pos=0;
+static size_t delayed_outbuf_pos = 0;
 
-static
-void
-putch_delayed(int ch)
+static void putch_delayed(int ch)
 {
-	/*
-	 * No synchronization needed: called only during system startup
-	 * by main thread.
-	 */
+  /*
+   * No synchronization needed: called only during system startup
+   * by main thread.
+   */
 
-	KASSERT(delayed_outbuf_pos < sizeof(delayed_outbuf));
-	delayed_outbuf[delayed_outbuf_pos++] = ch;
+  KASSERT(delayed_outbuf_pos < sizeof(delayed_outbuf));
+  delayed_outbuf[delayed_outbuf_pos++] = ch;
 }
 
-static
-void
-flush_delay_buf(void)
+static void flush_delay_buf(void)
 {
-	size_t i;
-	for (i=0; i<delayed_outbuf_pos; i++) {
-		putch(delayed_outbuf[i]);
-	}
-	delayed_outbuf_pos = 0;
+  size_t i;
+  for (i = 0; i < delayed_outbuf_pos; i++) {
+    putch(delayed_outbuf[i]);
+  }
+  delayed_outbuf_pos = 0;
 }
 
 //////////////////////////////////////////////////
@@ -113,11 +109,9 @@ flush_delay_buf(void)
  * Print a character, using polling instead of interrupts to wait for
  * I/O completion.
  */
-static
-void
-putch_polled(struct con_softc *cs, int ch)
+static void putch_polled(struct con_softc* cs, int ch)
 {
-	cs->cs_sendpolled(cs->cs_devdata, ch);
+  cs->cs_sendpolled(cs->cs_devdata, ch);
 }
 
 //////////////////////////////////////////////////
@@ -125,28 +119,23 @@ putch_polled(struct con_softc *cs, int ch)
 /*
  * Print a character, using interrupts to wait for I/O completion.
  */
-static
-void
-putch_intr(struct con_softc *cs, int ch)
+static void putch_intr(struct con_softc* cs, int ch)
 {
-	P(cs->cs_wsem);
-	cs->cs_send(cs->cs_devdata, ch);
+  P(cs->cs_wsem);
+  cs->cs_send(cs->cs_devdata, ch);
 }
 
 /*
  * Read a character, using interrupts to wait for I/O completion.
  */
-static
-int
-getch_intr(struct con_softc *cs)
+static int getch_intr(struct con_softc* cs)
 {
-	unsigned char ret;
+  unsigned char ret;
 
-	P(cs->cs_rsem);
-	ret = cs->cs_gotchars[cs->cs_gotchars_tail];
-	cs->cs_gotchars_tail =
-		(cs->cs_gotchars_tail + 1) % CONSOLE_INPUT_BUFFER_SIZE;
-	return ret;
+  P(cs->cs_rsem);
+  ret = cs->cs_gotchars[cs->cs_gotchars_tail];
+  cs->cs_gotchars_tail = (cs->cs_gotchars_tail + 1) % CONSOLE_INPUT_BUFFER_SIZE;
+  return ret;
 }
 
 /*
@@ -158,33 +147,31 @@ getch_intr(struct con_softc *cs)
  * too) would be with a second semaphore used with a nonblocking P,
  * but we don't have that in OS/161.
  */
-void
-con_input(void *vcs, int ch)
+void con_input(void* vcs, int ch)
 {
-	struct con_softc *cs = vcs;
-	unsigned nexthead;
+  struct con_softc* cs = vcs;
+  unsigned nexthead;
 
-	nexthead = (cs->cs_gotchars_head + 1) % CONSOLE_INPUT_BUFFER_SIZE;
-	if (nexthead == cs->cs_gotchars_tail) {
-		/* overflow; drop character */
-		return;
-	}
+  nexthead = (cs->cs_gotchars_head + 1) % CONSOLE_INPUT_BUFFER_SIZE;
+  if (nexthead == cs->cs_gotchars_tail) {
+    /* overflow; drop character */
+    return;
+  }
 
-	cs->cs_gotchars[cs->cs_gotchars_head] = ch;
-	cs->cs_gotchars_head = nexthead;
+  cs->cs_gotchars[cs->cs_gotchars_head] = ch;
+  cs->cs_gotchars_head = nexthead;
 
-	V(cs->cs_rsem);
+  V(cs->cs_rsem);
 }
 
 /*
  * Called from underlying device when a write-done interrupt occurs.
  */
-void
-con_start(void *vcs)
+void con_start(void* vcs)
 {
-	struct con_softc *cs = vcs;
+  struct con_softc* cs = vcs;
 
-	V(cs->cs_wsem);
+  V(cs->cs_wsem);
 }
 
 //////////////////////////////////////////////////
@@ -197,32 +184,29 @@ con_start(void *vcs)
  * not, and does not.
  */
 
-void
-putch(int ch)
+void putch(int ch)
 {
-	struct con_softc *cs = the_console;
+  struct con_softc* cs = the_console;
 
-	if (cs==NULL) {
-		putch_delayed(ch);
-	}
-	else if (curthread->t_in_interrupt ||
-		 curthread->t_curspl > 0 ||
-		 curcpu->c_spinlocks > 0) {
-		putch_polled(cs, ch);
-	}
-	else {
-		putch_intr(cs, ch);
-	}
+  if (cs == NULL) {
+    putch_delayed(ch);
+  }
+  else if (curthread->t_in_interrupt || curthread->t_curspl > 0 ||
+           curcpu->c_spinlocks > 0) {
+    putch_polled(cs, ch);
+  }
+  else {
+    putch_intr(cs, ch);
+  }
 }
 
-int
-getch(void)
+int getch(void)
 {
-	struct con_softc *cs = the_console;
-	KASSERT(cs != NULL);
-	KASSERT(!curthread->t_in_interrupt && curthread->t_iplhigh_count == 0);
+  struct con_softc* cs = the_console;
+  KASSERT(cs != NULL);
+  KASSERT(!curthread->t_in_interrupt && curthread->t_iplhigh_count == 0);
 
-	return getch_intr(cs);
+  return getch_intr(cs);
 }
 
 ////////////////////////////////////////////////////////////
@@ -231,107 +215,99 @@ getch(void)
  * VFS interface functions
  */
 
-static
-int
-con_eachopen(struct device *dev, int openflags)
+static int con_eachopen(struct device* dev, int openflags)
 {
-	(void)dev;
-	(void)openflags;
-	return 0;
+  (void)dev;
+  (void)openflags;
+  return 0;
 }
 
-static
-int
-con_io(struct device *dev, struct uio *uio)
+static int con_io(struct device* dev, struct uio* uio)
 {
-	int result;
-	char ch;
-	struct lock *lk;
+  int result;
+  char ch;
+  struct lock* lk;
 
-	(void)dev;  // unused
+  (void)dev;  // unused
 
-	if (uio->uio_rw==UIO_READ) {
-		lk = con_userlock_read;
-	}
-	else {
-		lk = con_userlock_write;
-	}
+  if (uio->uio_rw == UIO_READ) {
+    lk = con_userlock_read;
+  }
+  else {
+    lk = con_userlock_write;
+  }
 
-	KASSERT(lk != NULL);
-	lock_acquire(lk);
+  KASSERT(lk != NULL);
+  lock_acquire(lk);
 
-	while (uio->uio_resid > 0) {
-		if (uio->uio_rw==UIO_READ) {
-			ch = getch();
-			if (ch=='\r') {
-				ch = '\n';
-			}
-			result = uiomove(&ch, 1, uio);
-			if (result) {
-				lock_release(lk);
-				return result;
-			}
-			if (ch=='\n') {
-				break;
-			}
-		}
-		else {
-			result = uiomove(&ch, 1, uio);
-			if (result) {
-				lock_release(lk);
-				return result;
-			}
-			if (ch=='\n') {
-				putch('\r');
-			}
-			putch(ch);
-		}
-	}
-	lock_release(lk);
-	return 0;
+  while (uio->uio_resid > 0) {
+    if (uio->uio_rw == UIO_READ) {
+      ch = getch();
+      if (ch == '\r') {
+        ch = '\n';
+      }
+      result = uiomove(&ch, 1, uio);
+      if (result) {
+        lock_release(lk);
+        return result;
+      }
+      if (ch == '\n') {
+        break;
+      }
+    }
+    else {
+      result = uiomove(&ch, 1, uio);
+      if (result) {
+        lock_release(lk);
+        return result;
+      }
+      if (ch == '\n') {
+        putch('\r');
+      }
+      putch(ch);
+    }
+  }
+  lock_release(lk);
+  return 0;
 }
 
-static
-int
-con_ioctl(struct device *dev, int op, userptr_t data)
+static int con_ioctl(struct device* dev, int op, userptr_t data)
 {
-	/* No ioctls. */
-	(void)dev;
-	(void)op;
-	(void)data;
-	return EINVAL;
+  /* No ioctls. */
+  (void)dev;
+  (void)op;
+  (void)data;
+  return EINVAL;
 }
 
 static const struct device_ops console_devops = {
-	.devop_eachopen = con_eachopen,
-	.devop_io = con_io,
-	.devop_ioctl = con_ioctl,
+    .devop_eachopen = con_eachopen,
+    .devop_io = con_io,
+    .devop_ioctl = con_ioctl,
 };
 
-static
-int
-attach_console_to_vfs(struct con_softc *cs)
+static int attach_console_to_vfs(struct con_softc* cs)
 {
-	struct device *dev;
-	int result;
+  struct device* dev;
+  int result;
 
-	dev = kmalloc(sizeof(*dev));
-	if (dev==NULL) {
-		return ENOMEM;
-	}
+  dev = kmalloc(sizeof(*dev));
+  if (dev == NULL) {
+    return ENOMEM;
+  }
 
-	dev->d_ops = &console_devops;
-	dev->d_blocks = 0;
-	dev->d_blocksize = 1;
-	dev->d_data = cs;
+  dev->d_ops = &console_devops;
+  dev->d_blocks = 0;
+  dev->d_blocksize = 1;
+  dev->d_data = cs;
 
-	result = vfs_adddev("con", dev, 0);
-	if (result) {
-		kfree(dev);
-		return result;
-	}
+  result = vfs_adddev("con", dev, 0);
+  if (result) {
+    kfree(dev);
+    return result;
+  }
 
-	return 0;
+  return 0;
 }
 
 ////////////////////////////////////////////////////////////
@@ -340,58 +316,57 @@ attach_console_to_vfs(struct con_softc *cs)
  * Config routine called by autoconf.c after we are attached to something.
  */
 
-int
-config_con(struct con_softc *cs, int unit)
+int config_con(struct con_softc* cs, int unit)
 {
-	struct semaphore *rsem, *wsem;
-	struct lock *rlk, *wlk;
+  struct semaphore *rsem, *wsem;
+  struct lock *rlk, *wlk;
 
-	/*
-	 * Only allow one system console.
-	 * Further devices that could be the system console are ignored.
-	 *
-	 * Do not hardwire the console to be "con1" instead of "con0",
-	 * or these asserts will go off.
-	 */
-	if (unit>0) {
-		KASSERT(the_console!=NULL);
-		return ENODEV;
-	}
-	KASSERT(the_console==NULL);
+  /*
+   * Only allow one system console.
+   * Further devices that could be the system console are ignored.
+   *
+   * Do not hardwire the console to be "con1" instead of "con0",
+   * or these asserts will go off.
+   */
+  if (unit > 0) {
+    KASSERT(the_console != NULL);
+    return ENODEV;
+  }
+  KASSERT(the_console == NULL);
 
-	rsem = sem_create("console read", 0);
-	if (rsem == NULL) {
-		return ENOMEM;
-	}
-	wsem = sem_create("console write", 1);
-	if (wsem == NULL) {
-		sem_destroy(rsem);
-		return ENOMEM;
-	}
-	rlk = lock_create("console-lock-read");
-	if (rlk == NULL) {
-		sem_destroy(rsem);
-		sem_destroy(wsem);
-		return ENOMEM;
-	}
-	wlk = lock_create("console-lock-write");
-	if (wlk == NULL) {
-		lock_destroy(rlk);
-		sem_destroy(rsem);
-		sem_destroy(wsem);
-		return ENOMEM;
-	}
+  rsem = sem_create("console read", 0);
+  if (rsem == NULL) {
+    return ENOMEM;
+  }
+  wsem = sem_create("console write", 1);
+  if (wsem == NULL) {
+    sem_destroy(rsem);
+    return ENOMEM;
+  }
+  rlk = lock_create("console-lock-read");
+  if (rlk == NULL) {
+    sem_destroy(rsem);
+    sem_destroy(wsem);
+    return ENOMEM;
+  }
+  wlk = lock_create("console-lock-write");
+  if (wlk == NULL) {
+    lock_destroy(rlk);
+    sem_destroy(rsem);
+    sem_destroy(wsem);
+    return ENOMEM;
+  }
 
-	cs->cs_rsem = rsem;
-	cs->cs_wsem = wsem;
-	cs->cs_gotchars_head = 0;
-	cs->cs_gotchars_tail = 0;
+  cs->cs_rsem = rsem;
+  cs->cs_wsem = wsem;
+  cs->cs_gotchars_head = 0;
+  cs->cs_gotchars_tail = 0;
 
-	the_console = cs;
-	con_userlock_read = rlk;
-	con_userlock_write = wlk;
+  the_console = cs;
+  con_userlock_read = rlk;
+  con_userlock_write = wlk;
 
-	flush_delay_buf();
+  flush_delay_buf();
 
-	return attach_console_to_vfs(cs);
+  return attach_console_to_vfs(cs);
 }

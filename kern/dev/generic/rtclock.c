@@ -47,24 +47,22 @@
 #include <generic/rtclock.h>
 #include "autoconf.h"
 
-static struct rtclock_softc *the_clock = NULL;
+static struct rtclock_softc* the_clock = NULL;
 
-int
-config_rtclock(struct rtclock_softc *rtc, int unit)
+int config_rtclock(struct rtclock_softc* rtc, int unit)
 {
-	/* We use only the first clock device. */
-	if (unit!=0) {
-		return ENODEV;
-	}
+  /* We use only the first clock device. */
+  if (unit != 0) {
+    return ENODEV;
+  }
 
-	KASSERT(the_clock==NULL);
-	the_clock = rtc;
-	return 0;
+  KASSERT(the_clock == NULL);
+  the_clock = rtc;
+  return 0;
 }
 
-void
-gettime(struct timespec *ts)
+void gettime(struct timespec* ts)
 {
-	KASSERT(the_clock!=NULL);
-	the_clock->rtc_gettime(the_clock->rtc_devdata, ts);
+  KASSERT(the_clock != NULL);
+  the_clock->rtc_gettime(the_clock->rtc_devdata, ts);
 }

@@ -34,36 +34,36 @@
 #include "autoconf.h"
 
 /* Lowest revision we support */
-#define LOW_VERSION   1
+#define LOW_VERSION 1
 /* Revision that supports ltrace_stop() */
-#define STOP_VERSION  2
+#define STOP_VERSION 2
 /* Revision that supports ltrace_prof() */
-#define PROF_VERSION  3
+#define PROF_VERSION 3
 
-struct ltrace_softc *
-attach_ltrace_to_lamebus(int ltraceno, struct lamebus_softc *sc)
+struct ltrace_softc* attach_ltrace_to_lamebus(int ltraceno,
+                                              struct lamebus_softc* sc)
 {
-	struct ltrace_softc *lt;
-	uint32_t drl;
-	int slot = lamebus_probe(sc, LB_VENDOR_CS161, LBCS161_TRACE,
-				 LOW_VERSION, &drl);
-	if (slot < 0) {
-		return NULL;
-	}
+  struct ltrace_softc* lt;
+  uint32_t drl;
+  int slot =
+      lamebus_probe(sc, LB_VENDOR_CS161, LBCS161_TRACE, LOW_VERSION, &drl);
+  if (slot < 0) {
+    return NULL;
+  }
 
-	lt = kmalloc(sizeof(struct ltrace_softc));
-	if (lt==NULL) {
-		return NULL;
-	}
+  lt = kmalloc(sizeof(struct ltrace_softc));
+  if (lt == NULL) {
+    return NULL;
+  }
 
-	(void)ltraceno;  // unused
+  (void)ltraceno;  // unused
 
-	lt->lt_busdata = sc;
-	lt->lt_buspos = slot;
-	lt->lt_canstop = drl >= STOP_VERSION;
-	lt->lt_canprof = drl >= PROF_VERSION;
+  lt->lt_busdata = sc;
+  lt->lt_buspos = slot;
+  lt->lt_canstop = drl >= STOP_VERSION;
+  lt->lt_canprof = drl >= PROF_VERSION;
 
-	lamebus_mark(sc, slot);
+  lamebus_mark(sc, slot);
 
-	return lt;
+  return lt;
 }

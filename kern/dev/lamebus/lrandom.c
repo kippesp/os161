@@ -38,48 +38,43 @@
 #include "autoconf.h"
 
 /* Registers (offsets within slot) */
-#define LR_REG_RAND   0     /* random register */
+#define LR_REG_RAND 0 /* random register */
 
 /* Constants */
-#define LR_RANDMAX  0xffffffff
+#define LR_RANDMAX 0xffffffff
 
-int
-config_lrandom(struct lrandom_softc *lr, int lrandomno)
+int config_lrandom(struct lrandom_softc* lr, int lrandomno)
 {
-	(void)lrandomno;
-	(void)lr;
-	return 0;
+  (void)lrandomno;
+  (void)lr;
+  return 0;
 }
 
-uint32_t
-lrandom_random(void *devdata)
+uint32_t lrandom_random(void* devdata)
 {
-	struct lrandom_softc *lr = devdata;
-	return bus_read_register(lr->lr_bus, lr->lr_buspos, LR_REG_RAND);
+  struct lrandom_softc* lr = devdata;
+  return bus_read_register(lr->lr_bus, lr->lr_buspos, LR_REG_RAND);
 }
 
-uint32_t
-lrandom_randmax(void *devdata)
+uint32_t lrandom_randmax(void* devdata)
 {
-	(void)devdata;
-	return LR_RANDMAX;
+  (void)devdata;
+  return LR_RANDMAX;
 }
 
-int
-lrandom_read(void *devdata, struct uio *uio)
+int lrandom_read(void* devdata, struct uio* uio)
 {
-	struct lrandom_softc *lr = devdata;
-	uint32_t val;
-	int result;
+  struct lrandom_softc* lr = devdata;
+  uint32_t val;
+  int result;
 
-	while (uio->uio_resid > 0) {
-		val = bus_read_register(lr->lr_bus, lr->lr_buspos,
-					  LR_REG_RAND);
-		result = uiomove(&val, sizeof(val), uio);
-		if (result) {
-			return result;
-		}
-	}
+  while (uio->uio_resid > 0) {
+    val = bus_read_register(lr->lr_bus, lr->lr_buspos, LR_REG_RAND);
+    result = uiomove(&val, sizeof(val), uio);
+    if (result) {
+      return result;
+    }
+  }
 
-	return 0;
+  return 0;
 }

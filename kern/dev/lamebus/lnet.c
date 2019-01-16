@@ -33,14 +33,11 @@
 /*#include <lamebus/lnet.h>*/ /* not yet */
 #include "autoconf.h"
 
-int
-config_lnet(struct lnet_softc *sc, int lnetno)
+int config_lnet(struct lnet_softc* sc, int lnetno)
 {
-	(void)sc;
+  (void)sc;
 
-	kprintf("lnet%d: No network support in system\n", lnetno);
+  kprintf("lnet%d: No network support in system\n", lnetno);
 
-	return ENODEV;
+  return ENODEV;
 }
-
-

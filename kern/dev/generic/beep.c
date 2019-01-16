@@ -44,28 +44,26 @@
  * available.
  */
 
-static struct beep_softc *the_beep = NULL;
+static struct beep_softc* the_beep = NULL;
 
-int
-config_beep(struct beep_softc *bs, int unit)
+int config_beep(struct beep_softc* bs, int unit)
 {
-	/* We use only the first beep device. */
-	if (unit!=0) {
-		return ENODEV;
-	}
+  /* We use only the first beep device. */
+  if (unit != 0) {
+    return ENODEV;
+  }
 
-	KASSERT(the_beep==NULL);
-	the_beep = bs;
-	return 0;
+  KASSERT(the_beep == NULL);
+  the_beep = bs;
+  return 0;
 }
 
-void
-beep(void)
+void beep(void)
 {
-	if (the_beep!=NULL) {
-		the_beep->bs_beep(the_beep->bs_devdata);
-	}
-	else {
-		kprintf("beep: Warning: no beep device\n");
-	}
+  if (the_beep != NULL) {
+    the_beep->bs_beep(the_beep->bs_devdata);
+  }
+  else {
+    kprintf("beep: Warning: no beep device\n");
+  }
 }

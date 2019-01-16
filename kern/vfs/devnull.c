@@ -39,86 +39,79 @@
 #include <device.h>
 
 /* For open() */
-static
-int
-nullopen(struct device *dev, int openflags)
+static int nullopen(struct device* dev, int openflags)
 {
-	(void)dev;
-	(void)openflags;
+  (void)dev;
+  (void)openflags;
 
-	return 0;
+  return 0;
 }
 
 /* For d_io() */
-static
-int
-nullio(struct device *dev, struct uio *uio)
+static int nullio(struct device* dev, struct uio* uio)
 {
-	/*
-	 * On write, discard everything without looking at it.
-	 * (Notice that you can write to the null device from invalid
-	 * buffer pointers and it will still succeed. This behavior is
-	 * traditional.)
-	 *
-	 * On read, do nothing, generating an immediate EOF.
-	 */
+  /*
+   * On write, discard everything without looking at it.
+   * (Notice that you can write to the null device from invalid
+   * buffer pointers and it will still succeed. This behavior is
+   * traditional.)
+   *
+   * On read, do nothing, generating an immediate EOF.
+   */
 
-	(void)dev; // unused
+  (void)dev;  // unused
 
-	if (uio->uio_rw == UIO_WRITE) {
-		uio->uio_resid = 0;
-	}
+  if (uio->uio_rw == UIO_WRITE) {
+    uio->uio_resid = 0;
+  }
 
-	return 0;
+  return 0;
 }
 
 /* For ioctl() */
-static
-int
-nullioctl(struct device *dev, int op, userptr_t data)
+static int nullioctl(struct device* dev, int op, userptr_t data)
 {
-	/*
-	 * No ioctls.
-	 */
+  /*
+   * No ioctls.
+   */
 
-	(void)dev;
-	(void)op;
-	(void)data;
+  (void)dev;
+  (void)op;
+  (void)data;
 
-	return EINVAL;
+  return EINVAL;
 }
 
 static const struct device_ops null_devops = {
-	.devop_eachopen = nullopen,
-	.devop_io = nullio,
-	.devop_ioctl = nullioctl,
+    .devop_eachopen = nullopen,
+    .devop_io = nullio,
+    .devop_ioctl = nullioctl,
 };
 
 /*
  * Function to create and attach null:
  */
-void
-devnull_create(void)
+void devnull_create(void)
 {
-	int result;
-	struct device *dev;
+  int result;
+  struct device* dev;
 
-	dev = kmalloc(sizeof(*dev));
-	if (dev==NULL) {
-		panic("Could not add null device: out of memory\n");
-	}
+  dev = kmalloc(sizeof(*dev));
+  if (dev == NULL) {
+    panic("Could not add null device: out of memory\n");
+  }
 
-	dev->d_ops = &null_devops;
+  dev->d_ops = &null_devops;
 
-	dev->d_blocks = 0;
-	dev->d_blocksize = 1;
+  dev->d_blocks = 0;
+  dev->d_blocksize = 1;
 
-	dev->d_devnumber = 0; /* assigned by vfs_adddev */
+  dev->d_devnumber = 0; /* assigned by vfs_adddev */
 
-	dev->d_data = NULL;
+  dev->d_data = NULL;
 
-	result = vfs_adddev("null", dev, 0);
-	if (result) {
-		panic("Could not add null device: %s\n", strerror(result));
-	}
+  result = vfs_adddev("null", dev, 0);
+  if (result) {
+    panic("Could not add null device: %s\n", strerror(result));
+  }
 }

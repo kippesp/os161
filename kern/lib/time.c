@@ -33,37 +33,33 @@
 /*
  * ts1 + ts2
  */
-void
-timespec_add(const struct timespec *ts1,
-	     const struct timespec *ts2,
-	     struct timespec *ret)
+void timespec_add(const struct timespec* ts1, const struct timespec* ts2,
+                  struct timespec* ret)
 {
-	ret->tv_nsec = ts1->tv_nsec + ts2->tv_nsec;
-	ret->tv_sec = ts1->tv_sec + ts2->tv_sec;
-	if (ret->tv_nsec >= 1000000000) {
-		ret->tv_nsec -= 1000000000;
-		ret->tv_sec += 1;
-	}
+  ret->tv_nsec = ts1->tv_nsec + ts2->tv_nsec;
+  ret->tv_sec = ts1->tv_sec + ts2->tv_sec;
+  if (ret->tv_nsec >= 1000000000) {
+    ret->tv_nsec -= 1000000000;
+    ret->tv_sec += 1;
+  }
 }
 
 /*
  * ts1 - ts2
  */
-void
-timespec_sub(const struct timespec *ts1,
-	     const struct timespec *ts2,
-	     struct timespec *ret)
+void timespec_sub(const struct timespec* ts1, const struct timespec* ts2,
+                  struct timespec* ret)
 {
-	/* in case ret and ts1 or ts2 are the same */
-	struct timespec r;
+  /* in case ret and ts1 or ts2 are the same */
+  struct timespec r;
 
-	r = *ts1;
-	if (r.tv_nsec < ts2->tv_nsec) {
-		r.tv_nsec += 1000000000;
-		r.tv_sec--;
-	}
+  r = *ts1;
+  if (r.tv_nsec < ts2->tv_nsec) {
+    r.tv_nsec += 1000000000;
+    r.tv_sec--;
+  }
 
-	r.tv_nsec -= ts2->tv_nsec;
-	r.tv_sec -= ts2->tv_sec;
-	*ret = r;
+  r.tv_nsec -= ts2->tv_nsec;
+  r.tv_sec -= ts2->tv_sec;
+  *ret = r;
 }
