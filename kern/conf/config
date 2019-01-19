@@ -1065,4 +1065,4 @@ rm -f $CONFTMP $CONFTMP.attach
 
 echo
 echo "Configuration in ../compile/$CONFNAME done"
-echo "Remember to make depend"
+echo "Remember to bmake depend in directory ../compile/$CONFNAME"
