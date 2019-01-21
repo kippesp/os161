@@ -10,6 +10,9 @@ export CURRENT_KERNEL=DUMBVM
 #export CURRENT_KERNEL=ASST2
 #export CURRENT_KERNEL=ASST3
 
+# set tags file created by 'bmake tags'
+export TAGSFILE=$OS161_SRC/kern/compile/$CURRENT_KERNEL/tags
+
 # configure gdb for SYS161 connection
 gdb() {
     pushd $OS161_SYSROOT
@@ -36,6 +39,7 @@ gokern() {
 bk() {
     pushd $OS161_SRC/kern/compile/$CURRENT_KERNEL
     bmake
+    bmake tags
 
     if [ $? -eq 0 ]; then
         bmake install
