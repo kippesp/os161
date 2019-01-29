@@ -200,7 +200,8 @@ install:
 # the most useful way to do this and may need attention. (XXX?)
 #
 tags:
-	ctags $(ALLSRCS) $(TAGS_HEADERS)
+	ctags $(ALLSRCS)
+	ctags -au --c++-kinds=+p $(TAGS_HEADERS)
 
 #
 # This tells make that these rules are not files so it (hopefully)
