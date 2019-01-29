@@ -88,7 +88,7 @@ static void semtestthread(void* junk, unsigned long num)
   /*
    * Only one of these should print at a time.
    */
-  P(testsem);
+  P(testsem); // block for testsim
   semtest_current = num;
 
   kprintf_n("Thread %2lu: ", num);
@@ -100,7 +100,7 @@ static void semtestthread(void* junk, unsigned long num)
   }
   kprintf_n("\n");
 
-  V(donesem);
+  V(donesem); // signal donesim (free driver)
 }
 
 int semtest(int nargs, char** args)
@@ -144,8 +144,8 @@ int semtest(int nargs, char** args)
   }
   for (i = 0; i < NTHREADS; i++) {
     kprintf_t(".");
-    V(testsem);
-    P(donesem);
+    V(testsem); // signal testim
+    P(donesem); // block for donesim
   }
 
   sem_destroy(testsem);

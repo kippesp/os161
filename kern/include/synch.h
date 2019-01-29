@@ -59,8 +59,8 @@ void sem_destroy(struct semaphore *);
  *                   the count is 1 again before decrementing.
  *     V (verhogen): increment count.
  */
-void P(struct semaphore *);
-void V(struct semaphore *);
+void P(struct semaphore *);   // wait(S)
+void V(struct semaphore *);   // signal(S)
 
 
 /*
