@@ -83,7 +83,7 @@ void sem_destroy(struct semaphore* sem)
   kfree(sem);
 }
 
-void P(struct semaphore* sem)
+void P(struct semaphore* sem)  // wait(S)
 {
   KASSERT(sem != NULL);
 
@@ -117,7 +117,7 @@ void P(struct semaphore* sem)
   spinlock_release(&sem->sem_lock);
 }
 
-void V(struct semaphore* sem)
+void V(struct semaphore* sem)  // signal(S)
 {
   KASSERT(sem != NULL);
 
@@ -345,4 +345,89 @@ void cv_broadcast(struct cv* cv, struct lock* lock)
   spinlock_acquire(&cv->cv_spinlock);
   wchan_wakeall(cv->cv_wchan, &cv->cv_spinlock);
   spinlock_release(&cv->cv_spinlock);
+}
+
+struct rwlock* rwlock_create(const char* name)
+{
+  struct rwlock* rwlock;
+
+  rwlock = kmalloc(sizeof(*rwlock));
+  if (rwlock == NULL) {
+    return NULL;
+  }
+
+  rwlock->rwlk_name = kstrdup(name);
+  if (rwlock->rwlk_name == NULL) {
+    kfree(rwlock);
+    return NULL;
+  }
+
+  rwlock->rwlk_lock = lock_create(rwlock->rwlk_name);
+  if (rwlock->rwlk_lock == NULL) {
+    kfree(rwlock->rwlk_name);
+    kfree(rwlock);
+    return NULL;
+  }
+
+  rwlock->rwlk_semaphore = sem_create(rwlock->rwlk_name, MAX_RWLOCK_READERS);
+  if (rwlock->rwlk_semaphore == NULL) {
+    lock_destroy(rwlock->rwlk_lock);
+    kfree(rwlock->rwlk_name);
+    kfree(rwlock);
+    return NULL;
+  }
+
+  return rwlock;
+}
+
+void rwlock_destroy(struct rwlock* rwlock)
+{
+  KASSERT(rwlock != NULL);
+
+  lock_acquire(rwlock->rwlk_lock);
+
+  kfree(rwlock->rwlk_name);
+  sem_destroy(rwlock->rwlk_semaphore);
+
+  lock_release(rwlock->rwlk_lock);
+  lock_destroy(rwlock->rwlk_lock);
+
+  kfree(rwlock);
+}
+
+void rwlock_acquire_read(struct rwlock* rwlock)
+{
+  KASSERT(rwlock != NULL);
+  lock_acquire(rwlock->rwlk_lock);
+  P(rwlock->rwlk_semaphore);
+  lock_release(rwlock->rwlk_lock);
+}
+
+void rwlock_release_read(struct rwlock* rwlock)
+{
+  KASSERT(rwlock != NULL);
+  V(rwlock->rwlk_semaphore);
+}
+
+void rwlock_acquire_write(struct rwlock* rwlock)
+{
+  KASSERT(rwlock != NULL);
+
+  // acquire all the semaphores to write to block future readers
+  lock_acquire(rwlock->rwlk_lock);
+  int i;
+  for (i = 0; i < MAX_RWLOCK_READERS; i++) {
+    P(rwlock->rwlk_semaphore);
+  }
+  lock_release(rwlock->rwlk_lock);
+}
+
+void rwlock_release_write(struct rwlock* rwlock)
+{
+  KASSERT(rwlock != NULL);
+
+  int i;
+  for (i = 0; i < MAX_RWLOCK_READERS; i++) {
+    V(rwlock->rwlk_semaphore);
+  }
 }

@@ -153,10 +153,15 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
  * (should be) made internally.
  */
 
+#define MAX_RWLOCK_READERS 51
+
 struct rwlock {
-        char *rwlock_name;
+        char *rwlk_name;
         // add what you need here
         // (don't forget to mark things volatile as needed)
+
+        struct lock* rwlk_lock;
+        struct semaphore* rwlk_semaphore;
 };
 
 struct rwlock * rwlock_create(const char *);
@@ -165,7 +170,7 @@ void rwlock_destroy(struct rwlock *);
 /*
  * Operations:
  *    rwlock_acquire_read  - Get the lock for reading. Multiple threads can
- *                          hold the lock for reading at the same time.
+ *                           hold the lock for reading at the same time.
  *    rwlock_release_read  - Free the lock. 
  *    rwlock_acquire_write - Get the lock for writing. Only one thread can
  *                           hold the write lock at one time.
