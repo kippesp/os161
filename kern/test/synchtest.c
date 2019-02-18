@@ -449,6 +449,33 @@ int locktest5(int nargs, char** args)
   return 0;
 }
 
+int locktest6(int nargs, char** args)
+{
+  (void)nargs;
+  (void)args;
+
+  kprintf_n("Starting lt6...\n");
+  kprintf_n("(This test panics on success!)\n");
+
+  testlock = lock_create("testlock");
+  if (testlock == NULL) {
+    panic("lt2: lock_create failed\n");
+  }
+
+  lock_acquire(testlock);
+  secprintf(SECRET, "Should panic...", "lt6");
+  lock_acquire(testlock);
+
+  /* Should not get here on success. */
+
+  success(TEST161_FAIL, SECRET, "lt6");
+
+  /* Don't do anything that could panic. */
+
+  testlock = NULL;
+  return 0;
+}
+
 static void cvtestthread(void* junk, unsigned long num)
 {
   (void)junk;
