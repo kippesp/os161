@@ -781,7 +781,7 @@ echo -n ' files.mk'
 	    debugflags="-g -Og";
 	}
 	$1=="debugonly" {
-	    debugflags="-g";
+	    debugflags="-ggdb3 -O0";
 	}
 
 	END {
