@@ -3,7 +3,8 @@
 
 include conf/conf.kern		# get definitions of available options
 
-debug				# Compile with debug info.
+#debug				# Compile with debug info.
+debugonly			# Compile with debug info.
 
 #
 # Device drivers for hardware.
