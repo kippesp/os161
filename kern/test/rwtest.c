@@ -199,18 +199,23 @@ int rwtest(int nargs, char** args)
   testrwlock = NULL;
   donesem = NULL;
 
+  sem_destroy(donewriter);
+  donewriter = NULL;
+
   kprintf_t("\n");
   success(test_status, SECRET, "rwt1");
 
   return 0;
 }
 
+// single writer
+// multiple readers
 int rwtest2(int nargs, char** args)
 {
   (void)nargs;
   (void)args;
 
-  int i;
+  int i, result;
 
   kprintf_n("Starting rwt2...\n");
   for (i = 0; i < CREATELOOPS; i++) {
@@ -222,36 +227,6 @@ int rwtest2(int nargs, char** args)
     donesem = sem_create("donesem", 0);
     if (donesem == NULL) {
       panic("rwt2: sem_create failed\n");
-    }
-
-    rwlock_destroy(testrwlock);
-    sem_destroy(donesem);
-  }
-
-  success(TEST161_SUCCESS, SECRET, "rwt2");
-
-  return 0;
-}
-
-// single writer
-// multiple readers
-int rwtest3(int nargs, char** args)
-{
-  (void)nargs;
-  (void)args;
-
-  int i, result;
-
-  kprintf_n("Starting rwt3...\n");
-  for (i = 0; i < CREATELOOPS; i++) {
-    kprintf_t(".");
-    testrwlock = rwlock_create("testrwlock");
-    if (testrwlock == NULL) {
-      panic("rwt3: lock_create failed\n");
-    }
-    donesem = sem_create("donesem", 0);
-    if (donesem == NULL) {
-      panic("rwt3: sem_create failed\n");
     }
     if (i != CREATELOOPS - 1) {
       rwlock_destroy(testrwlock);
@@ -297,7 +272,24 @@ int rwtest3(int nargs, char** args)
   testrwlock = NULL;
   donesem = NULL;
 
+  sem_destroy(donewriter);
+  donewriter = NULL;
+
   kprintf_t("\n");
+  success(test_status, SECRET, "rwt2");
+
+  return 0;
+}
+
+int rwtest3(int nargs, char** args)
+{
+  (void)nargs;
+  (void)args;
+
+  //kprintf_n("rwt3 unimplemented\n");
+  //success(TEST161_SUCCESS, SECRET, "rwt3");
+  panic("rwt3: NOOP test\n");
+
   success(test_status, SECRET, "rwt3");
 
   return 0;
@@ -308,8 +300,14 @@ int rwtest4(int nargs, char** args)
   (void)nargs;
   (void)args;
 
-  kprintf_n("rwt4 unimplemented\n");
-  success(TEST161_FAIL, SECRET, "rwt4");
+  kprintf_n("Starting rwt4...\n");
+
+  //kprintf_n("rwt4 unimplemented\n");
+  //success(TEST161_SUCCESS, SECRET, "rwt4");
+  KASSERT(0 == 1);
+  panic("rwt4: NOOP test\n");
+
+  success(test_status, SECRET, "rwt4");
 
   return 0;
 }
@@ -319,8 +317,11 @@ int rwtest5(int nargs, char** args)
   (void)nargs;
   (void)args;
 
-  kprintf_n("rwt5 unimplemented\n");
-  success(TEST161_FAIL, SECRET, "rwt5");
+  //kprintf_n("rwt5 unimplemented\n");
+  //success(TEST161_SUCCESS, SECRET, "rwt5");
+  panic("rwt5: NOOP test failed\n");
+
+  success(test_status, SECRET, "rwt5");
 
   return 0;
 }
