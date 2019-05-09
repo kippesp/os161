@@ -44,8 +44,24 @@
  * Called by the driver during initialization.
  */
 
+typedef struct {
+  int32_t ready;
+  int32_t spent;
+} whale_t;
+
+static struct lock* whalelock = NULL;
+static struct cv* malecv = NULL;
+static struct cv* femalecv = NULL;
+static whale_t whale_males = {0, 0};
+static whale_t whale_females = {0, 0};
+static whale_t whale_matchmakers = {0, 0};
+
 void whalemating_init()
 {
+  whalelock = lock_create("whalelock");
+  malecv = cv_create("malecv");
+  femalecv = cv_create("famalecv");
+
   return;
 }
 
@@ -55,6 +71,10 @@ void whalemating_init()
 
 void whalemating_cleanup()
 {
+  lock_destroy(whalelock);
+  cv_destroy(malecv);
+  cv_destroy(femalecv);
+
   return;
 }
 
@@ -65,6 +85,22 @@ void male(uint32_t index)
    * Implement this function by calling male_start and male_end when
    * appropriate.
    */
+
+  male_start(index);
+
+  lock_acquire(whalelock);
+  whale_males.ready++;
+
+  // Wait for matchmaker to wake
+  cv_wait(malecv, whalelock);
+
+  male_end(index);
+
+  whale_males.ready--;
+  whale_males.spent++;
+
+  lock_release(whalelock);
+
   return;
 }
 
@@ -75,6 +111,21 @@ void female(uint32_t index)
    * Implement this function by calling female_start and female_end when
    * appropriate.
    */
+  female_start(index);
+
+  lock_acquire(whalelock);
+  whale_females.ready++;
+
+  // Wait for matchmaker to wake
+  cv_wait(femalecv, whalelock);
+
+  female_end(index);
+
+  whale_females.ready--;
+  whale_females.spent++;
+
+  lock_release(whalelock);
+
   return;
 }
 
@@ -85,5 +136,24 @@ void matchmaker(uint32_t index)
    * Implement this function by calling matchmaker_start and matchmaker_end
    * when appropriate.
    */
+  matchmaker_start(index);
+
+  lock_acquire(whalelock);
+  whale_matchmakers.ready++;
+
+  KASSERT(whale_males.ready > 0);
+  KASSERT(whale_females.ready > 0);
+
+  // Wake a male and female whale
+  cv_signal(malecv, whalelock);
+  cv_signal(femalecv, whalelock);
+
+  matchmaker_end(index);
+
+  whale_matchmakers.ready--;
+  whale_matchmakers.spent++;
+
+  lock_release(whalelock);
+
   return;
 }
