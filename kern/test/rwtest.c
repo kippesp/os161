@@ -286,11 +286,23 @@ int rwtest3(int nargs, char** args)
   (void)nargs;
   (void)args;
 
-  //kprintf_n("rwt3 unimplemented\n");
-  //success(TEST161_SUCCESS, SECRET, "rwt3");
-  panic("rwt3: NOOP test\n");
+  kprintf_n("Starting rw3...\n");
+  kprintf_n("(This test panics on success!)\n");
 
-  success(test_status, SECRET, "rwt3");
+  testrwlock = rwlock_create("testrwlock");
+  if (testrwlock == NULL) {
+    panic("rw3: rwlock_create failed\n");
+  }
+
+  secprintf(SECRET, "Should panic...", "rw3");
+
+  rwlock_release_read(NULL);
+
+  /* Should not get here on success. */
+
+  success(TEST161_FAIL, SECRET, "rw3");
+
+  /* Don't do anything that could panic. */
 
   return 0;
 }
