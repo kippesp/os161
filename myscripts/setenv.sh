@@ -82,7 +82,7 @@ h() {
     echo "COMMANDS for OS161/SYS161 (kernel: $CURRENT_KERNEL):"
     echo ""
     echo "os161config       - initial config for fresh code"
-    echo "kernelconfig CFG  - configure the kernel for CFG"
+    echo "kernelconfig CFG  - configure the kernel for kern/conf/CFG"
     echo "bk                - build kernel"
     echo ""
     echo "gosrc  - change to source dir"
