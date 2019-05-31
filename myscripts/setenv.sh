@@ -6,8 +6,8 @@ export PATH=$OS161/tools/bin:$PATH
 export OS161_SYSROOT=$OS161/root
 
 #export CURRENT_KERNEL=DUMBVM
-export CURRENT_KERNEL=ASST1
-#export CURRENT_KERNEL=ASST2
+#export CURRENT_KERNEL=ASST1
+export CURRENT_KERNEL=ASST2
 #export CURRENT_KERNEL=ASST3
 
 # set tags file created by 'bmake tags'
