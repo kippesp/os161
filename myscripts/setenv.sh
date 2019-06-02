@@ -66,9 +66,20 @@ st() {
 }
 
 # only required to remake defs.mk (to set the root path info)
+# and satisfy sys161.conf config file dependency.
 os161config() {
     pushd $OS161_SRC
     ./configure --ostree=$OS161_SYSROOT
+
+    if [ ! -e $OS161_SYSROOT ]; then
+        mkdir $OS161_SYSROOT
+    fi
+
+    if [ ! -e $OS161_SYSROOT/sys161.conf ]; then
+        pushd $OS161_SYSROOT
+        ln -s $OS161_SRC/sys161.conf
+    fi
+
     popd
 }
 
