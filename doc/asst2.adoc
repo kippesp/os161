@@ -1,0 +1,539 @@
+= OS161 ASST2 Design Document
+:source-highlighter: rouge
+:source-language: c
+:xrefstyle: short
+:listing-caption: Listing
+
+== Summary
+
+Across two parts, ASST2 adds
+
+- file system,
+- process, and
+- console I/O support
+
+in order to enable the OS161 operating system to provide shell support and
+execute both single and multiple processes in user mode.
+
+ASST2 splits the first 5% of effort for implementing the file handles table,
+the file descriptor definition, console output, and the `write()` system call.
+The remaining 80% of effort implements the other file system calls and process
+support.
+
+== VOP Helper Functions and UIO
+
+The filesystem system calls to be implemented each make use of the available
+VOP and VFS helper functions: `vfs_open()`, `vfs_close()`, `VOP_STAT()`,
+`VOP_READ()`, `VOP_WRITE()`, and `VOP_ISSEEKABLE()`.  Where necessary, pointers
+from user space are checked for validity using `copyin()`, `copyout()`,
+`copyinstr()`, and `copyoutstr()`.  Additioal checks are also performed by the
+various `VOP` helper functions to verify user space pointers in `struct iovec`
+and `struct uio` are safe to use.  Doing so permits these file operations to
+act directly on user memory without an expensive copying operation.
+
+== Test161 Coverage
+
+<<tblFileTests>> lists the available tests and the file syscalls tested.
+<<tblProcessTests>> lists the same for the tests focusing on the process
+changes. <<tblStabilityTests>> lists tests focusing on system stability and
+final submission criteria.
+
+.Available Filesystem Tests
+[#tblFileTests]
+|===
+|*Test161 Test*         |*Syscall*
+|/testbin/consoletest   |write
+|/testbin/sink          |read
+|/testbin/conman        |read write
+|/testbin/closetest     |open close
+|/testbin/readwritetest |open read write
+|/testbin/fileonlytest  |open read write close lseek
+|/testbin/filetest      |open read write remove [args]
+|/testbin/tail          |open read write close lseek args
+|/testbin/sparsefile    |open read write close lseek args
+|===
+
+.Available Process Tests
+[#tblProcessTests]
+|===
+|*Syscall*              |*Test161 Test*
+|/testbin/forktest      |fork waitpid _exit getpid
+|/testbin/rmtest        |open read write close lseek args
+|/testbin/redirect      |dup2 open close write execv fork waidpid
+|/testbin/argtest       |execv args
+|/testbin/add           |execv args
+|/testbin/factorial     |execv args
+|/testbin/bigexec       |fork execv
+|===
+
+.Available Stability Tests
+[#tblStabilityTests]
+|===
+|*Syscall*
+|/testbin/forktest
+|/testbin/badcall
+|/testbin/crash
+|===
+
+== Data Structure Changes and Code Additions
+
+ASST2 is conceptionally broken into three phases:
+
+- ASST2.1 for adding `write()` support and console output,
+- ASST2.2a for adding the remaining file syscalls, and
+- ASST2.2b for adding process support.
+
+=== ASST2.1 and ASST2.2a File System Syscall Support
+
+<<lstAsst21ProcStruct>> shows the process structure changes to support the open
+files and current directory syscalls.  The process structure defined in
+`kern/include/proc.h` is modified to support a pointer to the table of file
+handles, `p_fdtable`.  At process creation, the file handles table is allocated
+for space to support `__OPEN_MAX` handles; at the same time the first three
+entries are initialized for stdin, stdout, and stderr.
+
+.Process structure changes for system calls
+[#lstAsst21ProcStruct,source]
+----
+struct proc {
+    char* p_name;                       /* Name of this process */
+    struct spinlock p_lock;             /* Lock for this structure */
+    unsigned p_numthreads;              /* Number of threads in this process */
+
+    /* VM */
+    struct addrspace* p_addrspace;      /* virtual address space */
+
+    /* VFS */
+    struct vnode* p_cwd;                /* current working directory */
+
+    /* added material for ASST2 file syscalls */
+
+    /* Table of file handles */
+    struct filedesc** p_fdtable;        /* ptr to open files file table */
+};
+----
+
+The new process support file `kern/proc/filedescr.c` provides kernel functions:
+
+`int get_free_fh(struct proc*)`::
+Returns an index into the process file table `p_fh` to facilitate allocation of
+a new file descriptor.  Returns -1 if not found.
+`int get_fh(struct proc*, struct filedesc*)`::
+Returns the file handle of the found file descriptor.  Returns -1 if not found.
+`int free_fh(struct proc*, int)`::
+Makes available the process's file handle.  Returns -1 if the index is invalid
+or not currently assigned.
+
+<<lstFiledescStruct>> describes the file descriptor.
+
+[#lstFiledescStruct,source]
+----
+struct filedesc {
+    int fd_refcnt;                      /* reference count */
+    struct vnode* fd_ofile;             /* open file */
+    int oflags;                         /* open file flags */
+    off_t fd_pos;                       /* file read/write position */
+    struct lock* fd_lock;               /* synchronization lock */
+};
+----
+
+=== ASST2.2b Process ID Management Support
+
+The proc table is expanded to include the current and parent pids.  To support
+`waitpid` the single-linked list `p_mychild_threads` lists the valid pids that
+can be waited for.  A bool flag `p_exited` is used as a control for sleeping
+a waiting parent until the child thread has exited.  The `p_exit_status`
+holds the exit status to be returned to `waitpid`.
+
+== Phase 1 (ASST2.1)
+
+The high-level goal of ASST2.1 is to pass the `consoletest/consoletest.c` test
+by implementing the `write()` system call, defining the file handles table, and
+defining the file descriptors structure.  This phase also initializes the
+`con:` device to file handle `STDOUT_FILENO` to enable stdout console output.
+
+
+=== Changes to `kern/syscall/runprogram.c`
+
+Since phase 1 of ASST2 starts new processes only with `runprogram()`, it is
+modified to:
+
+- allocate a table to support `__OPEN_MAX` file structures of type `struct
+  filedesc*`,
+- allocate one `struct filedesc` for the console's stdout assigned
+  `STDOUT_FILENO`, and
+- initialize the console as `O_WRONLY` using `vfs_open()` with the device
+  `con:`.
+- support argument passing
+
+=== Added Syscalls
+
+Phase 1 adds the `write()` syscall.
+
+Using the `write()` syscall as an example, the software flow of such a syscall
+from userland is to:
+
+- call the compile-time generated `write()` syscall-dispatcher MIPS assembly
+  function defined in `build/userland/lib/libc/syscalls.S`,
+- call the `__syscall()` MIPS assembly function defined in the same file in
+  order to trap into kernel space,
+- enter into kernel space at the `mips_utlb_handler` assembly function placed
+  at `0x8000000` during linking in order to save the trap's call frame define
+  in `kern/arch/mips/include/trapframe.h`,
+- call `mips_trap()` defined in `kern/arch/mips/locore/trap.c`,
+- call `syscall()` defined in `kern/arch/mips/syscall/syscall.c` in order to
+  dispatch the call's given `callno` supplied in the call frame, and
+- the call `sys_write()` defined in `kern/syscall/syscalls.c` for processing of
+  the syscall.
+
+==== Syscall `write()`
+
+The userland `write()` syscall is defined with its prototype.
+
+- [source]`ssize_t write(int fd, const void *buf, size_t buflen)`
+
+The `write()` syscall, as is generally the case for the remaining ASST2
+syscalls, requires these modifications to OS161 baseline code:
+
+. add the dispatching call to `sys_write()` in `kern/arch/mips/syscall/syscall.c`
+. create or append to `kern/include/file_syscall.h` with the kernel mode
+  prototype
+. add the new header to `kern/arch/mips/syscall/syscall.c`
+. create `kern/syscall/write_syscall.c` and define `sys_write()` in order to
+  process the syscall
+. add filename `write_syscall.c` to `kern/conf/conf.kern` for the make process
+
+The kernel mode implementation of `sys_write()`
+
+- checks if the file handle is valid,
+- checks if the buffer pointer is valid,
+- checks if the file was opened for writing,
+- acquires a synchronization lock on the file descriptor
+- calls `VOP_WRITE()` to complete the functional work,
+- updates the file descriptor's file position with the new offset,
+- returns the number of bytes written, and,
+- if necessary, the appropriate error code.
+
+The return value of `write()` is >= 0 indicating how many bytes were written to
+the file or -1 if an error occurred (see <<tblSyscallWrite>>).
+
+.Syscall `write()` error codes
+[#tblSyscallWrite]
+|===
+|*Error*  |*Description*
+|EBADF    |fd is not a valid file descriptor, or was not opened for writing.
+|EFAULT   |Part or all of the address space pointed to by buf is invalid.
+|ENOSPC   |There is no free space remaining on the filesystem containing the
+           file.
+|EIO      |A hardware I/O error occurred writing the data.
+|===
+
+== Phase 2a (ASST2.2a)
+
+ASST2.2 implements the remaining file system and process control syscalls and
+initializes the `con:` device for stdin and and stderr.
+
+=== 2a - Added File Syscalls
+
+ASST2.2 implements the `open()`, `close()`, `read()`, and `lseek()` syscalls
+and must pass the `testbin/fileonlytest` test.  The `chdir()`, `__getcwd()`,
+and `dup2()` file system calls are also implemented.
+
+==== Syscall `open()`
+
+The userland `open()` syscall for OS161 is defined with its prototype.
+
+- [source]`int open(const char* filename, int flags)`
+
+The emulator pass-through filesystem function `vfs_open()` is used by `open()`
+to complete the functional work.  For the `O_APPEND` mode, `VOP_STAT()` is used
+to determine the file size.
+
+The return value of `open()` is a non-negative file handle or -1 if an error
+occurred (see <<tblSyscallOpen>>).
+
+.Syscall `open()` error codes
+[#tblSyscallOpen]
+|===
+|*Error*  |*Description*
+|ENODEV   |The device prefix of filename did not exist.
+|ENOTDIR  |A non-final component of filename was not a directory.
+|ENOENT   |A non-final component of filename did not exist.
+|ENOENT   |The named file does not exist, and O_CREAT was not specified.
+|EEXIST   |The named file exists, and O_EXCL was specified.
+|EISDIR   |The named object is a directory, and it was to be opened for
+           writing.
+|EMFILE   |The process's file table was full, or a process-specific limit on
+           open files was reached.
+|ENFILE   |The system file table is full, if such a thing exists, or a
+           system-wide limit on open files was reached.
+|ENXIO    |The named object is a block device with no filesystem mounted on it.
+|ENOSPC   |The file was to be created, and the filesystem involved is full.
+|EINVAL   |flags contained invalid values.
+|EIO      |A hard I/O error occurred.
+|EFAULT   |filename was an invalid pointer.
+|===
+
+==== Syscall `read()`
+
+The userland `read()` syscall for OS161 is defined with its prototype.
+
+- [source]`ssize_t read(int fd, void* buf, size_t buflen)`
+
+The return value of `read()` is >= 0 indicating how many bytes were read or -1
+if an error occurred (see <<tblSyscallWrite>>).  A return value of 0 indicates
+end-of-file.
+
+.Syscall `read()` error codes
+[#tblSyscallRead]
+|===
+|*Error*  |*Description*
+|EBADF    |fd is not a valid file descriptor, or was not opened for reading.
+|EFAULT   |Part or all of the address space pointed to by buf is invalid.
+|EIO      |A hardware I/O error occurred reading the data.
+|===
+
+==== Syscall `close()`
+
+The userland `close()` syscall for OS161 is defined with its prototype.
+
+- [source]`int close(int fd)`
+
+If the file descriptor is valid, its reference count is first decremented.
+When the reference count is 0, the file is closed using `vfs_close()`.
+
+The return value of `close()` is 0 indicating no error or an error value in
+<<tblSyscallClose>>.
+
+.Syscall `close()` error codes
+[#tblSyscallClose]
+|===
+|*Error*  |*Description*
+|EBADF    |fd is not a valid file handle.
+|EIO      |A hard I/O error occurred.
+|===
+
+==== Syscall `lseek()`
+
+The userland `lseek()` syscall for OS161 is defined with its prototype.
+
+- [source]`off_t lseek(int fd, off_t pos, int whence)`
+
+`lseek()` is unique in that it uses one 64-bit input parameter, returns a
+64-bit value, and exhausts the trap frame registers resulting in the `whence`
+value to be pushed to the stack.  Explicitly the parameters are
+
+- `fd` in `a0`
+- `pos` in `a2` : `a3`
+- `whence` at address `sp` + 16 bytes
+- return value in `v0` : `v1`
+
+On success `lseek()` returns the new file position or -1 if an error occurred
+while setting `errno` according to <<tblSyscallLseek>>.
+
+
+.Syscall `lseek()` error codes
+[#tblSyscallLseek]
+|===
+|*Error*  |*Description*
+|EBADF   |fd is not a valid file handle.
+|ESPIPE  |fd refers to an object which does not support seeking.
+|EINVAL  |whence is invalid.
+|EINVAL  |The resulting seek position would be negative.
+|===
+
+==== Syscall `chdir()`
+
+The userland `chdir()` syscall for OS161 is defined with its prototype.
+
+- [source]`int chdir(const char* pathname)`
+
+After validating the pathname string, `vfs_chdir()` is used to complete the
+operation.
+
+.Syscall `chdir()` error codes
+[#tblSyscallChdir]
+|===
+|ENODEV  |The device prefix of pathname did not exist.
+|ENOTDIR |A non-final component of pathname was not a directory.
+|ENOTDIR |pathname did not refer to a directory.
+|ENOENT  |pathname did not exist.
+|EIO     |A hard I/O error occurred.
+|EFAULT  |pathname was an invalid pointer.
+|===
+
+==== Syscall `_getcwd()`
+
+After validation ?????? `vfs_getcwd()` is used to complete the operation.
+
+.Syscall `__getcwd()` error codes
+[#tblSyscallGetcwd]
+|===
+|ENOENT  |A component of the pathname no longer exists.
+|EIO     |A hard I/O error occurred.
+|EFAULT  |buf points to an invalid address. 
+|===
+
+==== Syscall `dup2()`
+
+The `dup2()` syscall is defined with its prototype.
+
+- [source]`int dup2(int oldfd, int newfd)`
+
+Since this syscall duplicates the `oldfd` handle, the reference count is
+increased.  If the two input handle refer to the same file handle, `dup2()`
+returns successfully having done nothing.
+
+.Syscall `__dup2()` error codes
+[#tblSyscallDup2]
+|===
+|EBADF   |oldfd is not a valid file handle, or newfd is a value that cannot be
+          a valid file handle.
+|EMFILE  |The process's file table was full, or a process-specific limit on
+          open files was reached.
+|ENFILE  |The system's file table was full, if such a thing is possible, or a
+          global limit on open files was reached. 
+|===
+
+=== 2b - Added Process Control Syscalls
+
+ASST2.2 implements the `fork()`, `waitpid()`, and `_exit()` process control
+system calls and must pass the `testbin/forktest` test.  The `execv()` and
+`kill_curthread()` calls are also implemented.
+
+For similar reasons given to initializing the console devices, `runprogram()`
+supports handling of process identifiers and is further modified to:
+
+- initialize a statically allocated table `struct proc** sysprocs` sized for
+  a newly defined limit, `NUM_PROCESSES_MAX`,
+- define `NUM_PROCESSES_MAX` to be 512, and
+- reserve pids 0 and 1 since 0 has special meaning with `fork()` and 1
+  conceptionally represents the init process.
+
+==== Syscall `getpid()`
+
+The `getpid()` call simply returns the process identifier of the current
+process.  `runprogram()` is modified in order to assign an available pid to the
+first processes and store it in the process table.
+
+- [source]`pid_t getpid(void)`
+
+==== Syscall `fork()`
+
+The implementation of `fork()` requires:
+
+- passing a duplicate of the parent's trap frame to the child thread,
+- duplicating the parent's address space using `as_copy()`,
+- creating a pid and child thread using `thread_fork()`, and
+- duplicating the parent's file table into child.
+
+The return value of `fork()` to the parent is 0 to the child, the child's pid
+to the parent, or -1 to the parent if an error occurred (see
+<<tblSyscallFork>>.
+
+.Syscall `fork()` error codes
+[#tblSyscallFork]
+|===
+|EMPROC  |The current user already has too many processes.
+|ENPROC  |There are already too many processes on the system.
+|ENOMEM  |Sufficient virtual memory for the new process was not available.
+|===
+
+==== Syscall `waitpid()`
+
+The userland `waitpid()` syscall for OS161 is defined with its prototype.
+
+- [source]`pid_t waitpid(pid_t pid, int *status, int options)`
+
+with `options` supporting the `WNOHANG` flag.
+
+The implementation
+
+- permits a parent thread to sleep until the child's `pid` has exited,
+- returns without sleeping when `WNOHANG` is specified if the child has not
+  exited,
+- requires a non-NULL return status parameter to be `int` aligned,
+- requires the child `pid` to be in the list `p_mychild_threads` of the parent,
+  and
+- uses the condition variable `p_exitedcv` with the `p_exited` flag to wake the
+  sleeping parent.
+
+If the child process has exited before `waitpid` returns, the parent child
+`proc` structure can be deallocated.  (By this time the `thread` structure will
+be deallocated by the child having called `_exit`.  If the the child, however,
+has previously forked its own child threads, these are reparented to themselves
+since OS161 has no `init` process to cleanup zombies.)
+
+The return value of `waitpid()` is the pid of the exited child, 0 if `WNOHANG`
+is specified and the hild has not exited, or -1 if an error occurred (see
+<<tblSyscallWaitpid>>).  On success, the child's exit status is indicated in
+`status` (if not NULL).
+
+.Syscall `waitpid()` error codes
+[#tblSyscallWaitpid]
+|===
+|EINVAL  |The options argument requested invalid or unsupported options.
+|ECHILD  |The pid argument named a process that was not a child of the current
+          process.
+|ESRCH   |The pid argument named a nonexistent process.
+|EFAULT  |The status argument was an invalid pointer.
+|===
+
+
+==== Syscall `_exit()`
+
+The userland `exit()` syscall for OS161 is defined with its prototype.
+
+- [source]`void _exit(int exitcode)`
+
+
+Exited processes are cleaned up by waitpid so that the parent can get the status.
+If the parent dies before the child, the threads in `p_mychild_threads` are
+reparented to themselves.  In effect, they become zombie threads and will not
+be cleaned up.
+
+==== Syscall `execv()`
+
+ENODEV  The device prefix of program did not exist.
+ENOTDIR A non-final component of program was not a directory.
+ENOENT  program did not exist.
+EISDIR  program is a directory.
+ENOEXEC program is not in a recognizable executable file format, was for the wrong platform, or contained invalid fields.
+ENOMEM  Insufficient virtual memory is available.
+E2BIG   The total size of the argument strings exceeeds ARG_MAX.
+EIO     A hard I/O error occurred.
+EFAULT  One of the arguments is an invalid pointer.
+
+The `execv` function is modeled after the `runprogram` function.  The primary
+differences are fetching the arguments to user space and populating the user
+stack with the argv data.
+
+Each argument is scanned to determine its size requirement.  This
+implementation requires the argv string, argv pointers, and NULL terminator to
+be under `ARG_MAX` bytes.  If the argv size requirement is met, a temporary
+kernel allocation to hold a copy of the argv structure is made in kernel space.
+
+The temporary argv structure in <<tblTempArgv>> is notable in that offsets to
+the argv strings are used while the table is constructed.  In this
+implementation, offsets are used since the string sizes previously determines
+as valid (i.e.  all of argv must be < `ARG_MAX` so each individual string also
+is) were never saved.  The `copyinstr` function provides the string length
+after it is copied.
+
+One the temporary argv structure has been constructed, it is copied to a newly
+created userspace stack and each offset patched with the absolute address of
+its argv string.
+
+.Temporary argv structure while in kernel memory
+[#tblTempArgv]
+|===
+|START-OF-argv_buf              |
+|int       argv_off[0]          |offset to &argv[0]
+|int       argv_off[1]          |offset to &argv[1]
+|int       argv_off[2..argc-1]  |remaining offsets
+|int       argv_off[argc]       |always NULL
+|char*     argv[2..argc-1]      |remaining argument strings
+|char*     argv[1]              |string of the first argument
+|char*     argv[0]              |typically the program name being executed
+|END-OF-argv_buf                |
+|===
