@@ -395,6 +395,12 @@ file      syscall/time_syscalls.c
 file      main/main.c
 file      main/menu.c
 
+#
+# ASST2 additions
+#
+
+file      proc/filedescr.c
+
 ########################################
 #                                      #
 #             Filesystems              #

@@ -36,6 +36,7 @@
  * Note: curproc is defined by <current.h>.
  */
 
+#include <filedescr.h>
 #include <spinlock.h>
 
 struct addrspace;
@@ -71,6 +72,9 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+
+        /* Table of handles */
+        struct filedesc** p_fdtable;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
