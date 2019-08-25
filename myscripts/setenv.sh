@@ -47,6 +47,14 @@ bk() {
     popd
 }
 
+# cleankernel
+kk() {
+    pushd $OS161_SRC/kern/compile/$CURRENT_KERNEL
+    bmake clean
+
+    popd
+}
+
 # build userspace tools
 btools() {
     pushd $OS161_SRC
