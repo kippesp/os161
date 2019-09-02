@@ -16,6 +16,11 @@ struct filedesc {
 };
 
 /*
+ * Return the file descriptor, fd, given a process's file handle, fh.
+ */
+int get_fd(struct proc*, int, struct filedesc**);
+
+/*
  * Returns an index into the process file table `p_fh` to facilitate allocation
  * of a new file descriptor.  Returns -1 if not found.
  */

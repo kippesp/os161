@@ -36,6 +36,8 @@
 #include <current.h>
 #include <syscall.h>
 
+#include <file_syscall.h>
+
 /*
  * System call dispatcher.
  *
@@ -107,6 +109,17 @@ void syscall(struct trapframe* tf)
       break;
 
       /* Add stuff here */
+
+    case SYS_write: {
+      /*
+       * Since write() is to return the number of bytes written or -1 during an
+       * error, use the convention of err being returned by the function and
+       * provide a separate buflen_written for the other stuff.
+       */
+      ssize_t buflen_written = 0;
+      err = sys_write((int)tf->tf_a0, (const_userptr_t)tf->tf_a1,
+                      (size_t)tf->tf_a2, &buflen_written);
+    } break;
 
     default:
       kprintf("Unknown syscall %d\n", callno);

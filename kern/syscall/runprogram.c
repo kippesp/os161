@@ -45,6 +45,12 @@
 #include <syscall.h>
 #include <test.h>
 
+#include <filedescr.h>
+#include <limits.h>
+#include <kern/unistd.h>
+#include <synch.h>
+#include <vnode.h>
+
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
@@ -95,6 +101,45 @@ int runprogram(char* progname)
     /* p_addrspace will go away when curproc is destroyed */
     return result;
   }
+
+  /* Create an empty file handles table */
+  struct proc* proc = curproc;
+  struct filedesc** p_fdtable = kmalloc(sizeof(struct filedesc*) * __OPEN_MAX);
+  if (p_fdtable == NULL) {
+    return ENOMEM;
+  }
+  spinlock_acquire(&proc->p_lock);
+  KASSERT(proc->p_fdtable == NULL); /* We are the first */
+  proc->p_fdtable = p_fdtable;
+  spinlock_release(&proc->p_lock);
+
+  /* Open con: device for writing (i.e. output for stdout) */
+  struct vnode* fd_ofile = NULL;
+
+  // use a non-const string for vfs_open()
+  char fn[80];
+  strcpy(fn, "con:");
+
+  int open_res = vfs_open(fn, O_WRONLY, 0666, &fd_ofile);
+  KASSERT((open_res == 0) && "Error opening con: device");
+
+  /* vn_fs being NULL is used to determine if syscalls are to mess with things
+     like offsets and positioning. */
+  KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
+
+  /* Create the stdout file descriptor */
+  struct filedesc* fd_stdout = kmalloc(sizeof(struct filedesc));
+  KASSERT(fd_stdout);
+  memset(fd_stdout, 0x00, sizeof(struct filedesc));
+  fd_stdout->fd_refcnt = 1;
+  fd_stdout->fd_ofile = fd_ofile;
+  fd_stdout->oflags = O_WRONLY;
+  fd_stdout->fd_lock = lock_create("fd_stdout");
+
+  spinlock_acquire(&proc->p_lock);
+  KASSERT(proc->p_fdtable[STDOUT_FILENO] == NULL);
+  proc->p_fdtable[STDOUT_FILENO] = fd_stdout;
+  spinlock_release(&proc->p_lock);
 
   /* Warp to user mode. */
   enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,

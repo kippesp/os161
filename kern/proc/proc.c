@@ -80,6 +80,9 @@ static struct proc* proc_create(const char* name)
   /* VFS fields */
   proc->p_cwd = NULL;
 
+  /* File handles table */
+  proc->p_fdtable = NULL;
+
   return proc;
 }
 
@@ -160,6 +163,16 @@ void proc_destroy(struct proc* proc)
       proc->p_addrspace = NULL;
     }
     as_destroy(as);
+  }
+
+  /* File handles table */
+
+//TODO: scan table for open file
+//TODO: close files
+//TODO: clean up locks
+
+  if (proc->p_fdtable) {
+    kfree(proc->p_fdtable);
   }
 
   KASSERT(proc->p_numthreads == 0);

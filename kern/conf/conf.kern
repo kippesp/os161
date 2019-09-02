@@ -400,6 +400,7 @@ file      main/menu.c
 #
 
 file      proc/filedescr.c
+file      syscall/write_syscall.c
 
 ########################################
 #                                      #

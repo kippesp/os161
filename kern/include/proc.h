@@ -73,8 +73,8 @@ struct proc {
 
 	/* add more material here as needed */
 
-        /* Table of handles */
-        struct filedesc** p_fdtable;
+	/* Table of handles */
+	struct filedesc** p_fdtable;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -103,3 +103,5 @@ struct addrspace *proc_setas(struct addrspace *);
 
 
 #endif /* _PROC_H_ */
+
+/* vim: set noet sw=8 sts=8: */
