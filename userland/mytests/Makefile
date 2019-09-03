@@ -2,6 +2,8 @@ TOP=../..
 .include "$(TOP)/mk/os161.config.mk"
 
 SUBDIRS=\
-	simplewrite
+	simplewrite \
+	simpleopen \
+	lseekargs
 
 .include "$(TOP)/mk/os161.subdir.mk"

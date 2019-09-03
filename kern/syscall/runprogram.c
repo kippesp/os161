@@ -108,19 +108,28 @@ int runprogram(char* progname)
   if (p_fdtable == NULL) {
     return ENOMEM;
   }
+  for (int i = 0; i < __OPEN_MAX; i++) {
+    p_fdtable[i] = NULL;
+  }
+
   spinlock_acquire(&proc->p_lock);
   KASSERT(proc->p_fdtable == NULL); /* We are the first */
   proc->p_fdtable = p_fdtable;
   spinlock_release(&proc->p_lock);
 
-  /* Open con: device for writing (i.e. output for stdout) */
-  struct vnode* fd_ofile = NULL;
+  /* open stdout */
+
+  // TODO: make a little helper
 
   // use a non-const string for vfs_open()
   char fn[80];
+  struct vnode* fd_ofile = NULL;
+  int open_res;
+  struct filedesc* fd = NULL;
+
   strcpy(fn, "con:");
 
-  int open_res = vfs_open(fn, O_WRONLY, 0666, &fd_ofile);
+  open_res = vfs_open(fn, O_WRONLY, 0666, &fd_ofile);
   KASSERT((open_res == 0) && "Error opening con: device");
 
   /* vn_fs being NULL is used to determine if syscalls are to mess with things
@@ -128,17 +137,69 @@ int runprogram(char* progname)
   KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
 
   /* Create the stdout file descriptor */
-  struct filedesc* fd_stdout = kmalloc(sizeof(struct filedesc));
-  KASSERT(fd_stdout);
-  memset(fd_stdout, 0x00, sizeof(struct filedesc));
-  fd_stdout->fd_refcnt = 1;
-  fd_stdout->fd_ofile = fd_ofile;
-  fd_stdout->oflags = O_WRONLY;
-  fd_stdout->fd_lock = lock_create("fd_stdout");
+  fd = kmalloc(sizeof(struct filedesc));
+  KASSERT(fd);
+  memset(fd, 0x0, sizeof(struct filedesc));
+  fd->fd_refcnt = 1;
+  fd->fd_ofile = fd_ofile;
+  fd->oflags = O_WRONLY;
+  fd->fd_lock = lock_create("fd_stdout");
 
   spinlock_acquire(&proc->p_lock);
   KASSERT(proc->p_fdtable[STDOUT_FILENO] == NULL);
-  proc->p_fdtable[STDOUT_FILENO] = fd_stdout;
+  proc->p_fdtable[STDOUT_FILENO] = fd;
+  spinlock_release(&proc->p_lock);
+
+  /* open stderr */
+
+  // TODO: all the spinlocks are not needed.  we're like the only ones here.
+
+  strcpy(fn, "con:");
+
+  open_res = vfs_open(fn, O_WRONLY, 0666, &fd_ofile);
+  KASSERT((open_res == 0) && "Error opening con: device");
+
+  /* vn_fs being NULL is used to determine if syscalls are to mess with things
+     like offsets and positioning. */
+  KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
+
+  /* Create the stderr file descriptor */
+  fd = kmalloc(sizeof(struct filedesc));
+  KASSERT(fd);
+  memset(fd, 0x0, sizeof(struct filedesc));
+  fd->fd_refcnt = 1;
+  fd->fd_ofile = fd_ofile;
+  fd->oflags = O_WRONLY;
+  fd->fd_lock = lock_create("fd_stderr");
+
+  spinlock_acquire(&proc->p_lock);
+  KASSERT(proc->p_fdtable[STDERR_FILENO] == NULL);
+  proc->p_fdtable[STDERR_FILENO] = fd;
+  spinlock_release(&proc->p_lock);
+
+  /* open stdin */
+
+  strcpy(fn, "con:");
+
+  open_res = vfs_open(fn, O_RDONLY, 0666, &fd_ofile);
+  KASSERT((open_res == 0) && "Error opening con: device");
+
+  /* vn_fs being NULL is used to determine if syscalls are to mess with things
+     like offsets and positioning. */
+  KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
+
+  /* Create the stdin file descriptor */
+  fd = kmalloc(sizeof(struct filedesc));
+  KASSERT(fd);
+  memset(fd, 0x0, sizeof(struct filedesc));
+  fd->fd_refcnt = 1;
+  fd->fd_ofile = fd_ofile;
+  fd->oflags = O_RDONLY;
+  fd->fd_lock = lock_create("fd_stdin");
+
+  spinlock_acquire(&proc->p_lock);
+  KASSERT(proc->p_fdtable[STDIN_FILENO] == NULL);
+  proc->p_fdtable[STDIN_FILENO] = fd;
   spinlock_release(&proc->p_lock);
 
   /* Warp to user mode. */

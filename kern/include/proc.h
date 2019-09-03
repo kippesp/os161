@@ -71,10 +71,11 @@ struct proc {
 	/* VFS */
 	struct vnode *p_cwd;		/* current working directory */
 
-	/* add more material here as needed */
+	/* ASST2.1 - file syscalls */
 
-	/* Table of handles */
-	struct filedesc** p_fdtable;
+	struct filedesc** p_fdtable;	/* table of open files */
+
+	/* TODO: char* p_currdir; */
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

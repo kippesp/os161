@@ -15,27 +15,39 @@ struct filedesc {
   struct lock* fd_lock;   /* synchronization lock */
 };
 
+
+/*
+ * Allocate and initialize a new file descriptor table.
+ */
+int init_fdtable(void);
+
 /*
  * Return the file descriptor, fd, given a process's file handle, fh.
  */
 int get_fd(struct proc*, int, struct filedesc**);
 
 /*
- * Returns an index into the process file table `p_fh` to facilitate allocation
- * of a new file descriptor.  Returns -1 if not found.
+ * Allocates and initializes a new file descriptor.
  */
-int get_free_fh(struct proc*);
+struct filedesc* new_fd(void);
+
+/*
+ * Called once the file descriptor is ready to be deleted.  A lock must
+ * be held on the file descriptor by the current process.  The refcount
+ * must be 0.
+ */
+void destroy_fd(struct filedesc*);
+
+/*
+ * Allocates and initialies a new file descriptor at file handle, fh.  Returns
+ * an appropriate error code on error and 0 on success.
+ */
+int new_fh(struct proc*, int* fh);
 
 /*
  * Returns the file handle of the found file descriptor.  Returns -1 if not
  * found.
  */
 int get_fh(struct proc*, struct filedesc*);
-
-/*
- * Makes available the process's file handle.  Returns -1 if the index is
- * invalid or not currently assigned.
- */
-int free_fh(struct proc*, int);
 
 #endif /* _FILEDESCR_H_ */

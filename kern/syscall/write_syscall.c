@@ -9,7 +9,7 @@
 #include <vnode.h>
 #include <synch.h>
 
-int sys_write(int fh, const_userptr_t buf, size_t buflen,
+int sys_write(int fh, const_userptr_t ubuf, size_t buflen,
               ssize_t* buflen_written)
 {
   int res = 0;
@@ -28,47 +28,26 @@ int sys_write(int fh, const_userptr_t buf, size_t buflen,
 
   /* copy entire buffer into kernel space for writing */
 
-  char* kbuf = (char*)kmalloc(buflen);
-  KASSERT(kbuf);
-  res = copyin(buf, (void*)kbuf, buflen);
-
-  if (res) {
-    kfree(kbuf);
-    goto SYS_WRITE_ERROR;
-  }
-
-  // TODO: move this junk into a helper function
-
-  struct uio wr_uio;
   struct iovec wr_uio_iov;
+  struct uio wr_uio;
+  off_t initial_offset = fd->fd_pos;
 
-  wr_uio.uio_iov = &wr_uio_iov;
-  wr_uio.uio_iovcnt = 1;
-  wr_uio.uio_offset = fd->fd_pos;
-  wr_uio.uio_resid = buflen;
-  wr_uio.uio_segflg = UIO_SYSSPACE;
-  wr_uio.uio_rw = UIO_WRITE;
-  wr_uio.uio_space = NULL; /* kbuf is is kernel space */
+  uio_uinit(&wr_uio_iov, &wr_uio, (void*)ubuf, buflen, initial_offset,
+            UIO_WRITE);
 
-  wr_uio_iov.iov_kbase = kbuf;
-  wr_uio_iov.iov_len = buflen;
-
-  lock_acquire(fd->fd_lock);
   res = VOP_WRITE(fd->fd_ofile, &wr_uio);
 
   /* Other than devices such as con:, update fd->fd_pos to reflect how much was
    * written.
    */
 
-  *buflen_written = wr_uio.uio_offset;
+  *buflen_written = wr_uio.uio_offset - initial_offset;
 
+  lock_acquire(fd->fd_lock);
   if (fd->fd_ofile->vn_fs) {
     fd->fd_pos += *buflen_written;
   }
-
   lock_release(fd->fd_lock);
-
-  kfree(kbuf);
 
   if (res) {
     goto SYS_WRITE_ERROR;

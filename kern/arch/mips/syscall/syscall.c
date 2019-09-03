@@ -36,6 +36,7 @@
 #include <current.h>
 #include <syscall.h>
 
+#include <copyinout.h>
 #include <file_syscall.h>
 
 /*
@@ -108,7 +109,30 @@ void syscall(struct trapframe* tf)
       err = sys___time((userptr_t)tf->tf_a0, (userptr_t)tf->tf_a1);
       break;
 
-      /* Add stuff here */
+      /* file IO system calls */
+
+    case SYS_open: {
+      int fh = 0;
+      err = sys_open((const_userptr_t)tf->tf_a0, (int)tf->tf_a1, &fh);
+      if (err == 0) {
+        retval = fh;
+      }
+      break;
+    }
+
+    case SYS_read: {
+      /*
+       * read() is to return the number of bytes read or -1 during an error.
+       * For and EOF, 0 is returned.
+       */
+      ssize_t buflen_read = 0;
+      err = sys_read((int)tf->tf_a0, (userptr_t)tf->tf_a1, (size_t)tf->tf_a2,
+                     &buflen_read);
+      if (err == 0) {
+        retval = buflen_read;
+      }
+      break;
+    }
 
     case SYS_write: {
       /*
@@ -119,7 +143,41 @@ void syscall(struct trapframe* tf)
       ssize_t buflen_written = 0;
       err = sys_write((int)tf->tf_a0, (const_userptr_t)tf->tf_a1,
                       (size_t)tf->tf_a2, &buflen_written);
+      if (err == 0) {
+        retval = buflen_written;
+      }
+      break;
+    }
+
+    case SYS_close:
+      err = sys_close((int)tf->tf_a0);
+      break;
+
+    case SYS_lseek: {
+      off_t new_pos = 0;
+      int fd = tf->tf_a0;
+      off_t pos = ((off_t)tf->tf_a2 << 32) | tf->tf_a3;
+      int whence = 0;
+
+      copyin((const_userptr_t)(tf->tf_sp + 16), &whence, sizeof(whence));
+
+      err = sys_lseek(fd, pos, whence, &new_pos);
+
+      if (err == 0) {
+        uint32_t hi = new_pos >> 32;
+        uint32_t lo = new_pos & 0xffffffff;
+
+        retval = hi;
+        tf->tf_v0 = hi; /* overwritten down below by retval */
+        tf->tf_v1 = lo;
+      }
     } break;
+
+    case SYS_chdir:
+      err = sys_chdir((const_userptr_t)tf->tf_a0);
+      break;
+
+      /* process system calls */
 
     default:
       kprintf("Unknown syscall %d\n", callno);
