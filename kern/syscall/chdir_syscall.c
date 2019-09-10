@@ -11,10 +11,29 @@ int sys_chdir(const_userptr_t upathname)
 {
   int res = 0;
 
+  KASSERT(0 && "chdir() not tested");
+
   if (upathname == NULL) {
     res = EFAULT;
     goto SYS_CHDIR_ERROR;
   }
+
+#if 0
+  // Not sure if I need better protection
+  // this is from kern/proc/proc.c
+
+  /*
+   * Lock the current process to copy its current directory.
+   * (We don't need to lock the new process, though, as we have
+   * the only reference to it.)
+   */
+  spinlock_acquire(&curproc->p_lock);
+  if (curproc->p_cwd != NULL) {
+    VOP_INCREF(curproc->p_cwd);
+    newproc->p_cwd = curproc->p_cwd;
+  }
+  spinlock_release(&curproc->p_lock);
+#endif
 
   char pathname[__PATH_MAX + 1] = "\0";
   size_t pathnamelen = 0;
