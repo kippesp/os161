@@ -49,4 +49,7 @@
 #define OPEN_MAX        __OPEN_MAX
 #define IOV_MAX         __IOV_MAX
 
+/* added ASST2.2 */
+#define NUM_PROCESSES_MAX __NUM_PROCESSES_MAX
+
 #endif /* _LIMITS_H_ */

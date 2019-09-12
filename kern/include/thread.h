@@ -117,6 +117,8 @@ struct thread {
 	 */
 
 	/* add more here as needed */
+
+	struct proc* t_myproc;
 };
 
 /*
@@ -183,3 +185,5 @@ extern unsigned thread_count;
 void thread_wait_for_count(unsigned);
 
 #endif /* _THREAD_H_ */
+
+/* vim: set noet sw=8 sts=8: */

@@ -49,6 +49,7 @@
 #include <kern/unistd.h>
 #include <synch.h>
 #include <vnode.h>
+#include <procid_mgmt.h>
 
 /* Helper function to create stdin/out/err */
 static struct filedesc* open_console_device(int OFLAGS, const char* name)
@@ -162,6 +163,10 @@ int runprogram(char* progname)
   fd = open_console_device(O_RDONLY, "stdin");
   KASSERT(proc->p_fdtable[STDIN_FILENO] == NULL);
   proc->p_fdtable[STDIN_FILENO] = fd;
+
+  /* initalize the system process identifier table */
+  pid_t mypid = sysprocs_init(proc);
+  KASSERT(mypid == 1);
 
   /* Warp to user mode. */
   enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,

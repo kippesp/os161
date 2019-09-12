@@ -85,6 +85,8 @@
 /* Max bytes for atomic pipe I/O -- see description in the pipe() man page */
 #define __PIPE_BUF      512
 
+/* ASST2.2 - Numer of entries in the systemProcs table */
+#define __NUM_PROCESSES_MAX 512
 
 /*
  * Not so important parts of the API. (Especially in OS/161 where we

@@ -80,6 +80,14 @@ struct proc {
 	struct filedesc** p_fdtable;	/* table of open files */
 
 	/* TODO: char* p_currdir; */
+
+	/* ASST2.2 - process support changes */
+	//struct thread* p_mythread;
+	// TODO: where are the threads kept?
+	pid_t p_ppid;			/* parent's pid */
+	pid_t p_pid;			/* my pid */
+	bool p_exited;
+	int p_exitcode;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */

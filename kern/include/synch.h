@@ -35,6 +35,7 @@
  */
 
 
+#include <lib.h>
 #include <spinlock.h>
 
 /*

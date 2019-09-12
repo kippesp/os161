@@ -342,6 +342,7 @@ optfile   hangman thread/hangman.c
 #
 
 file      proc/proc.c
+file      proc/procid_mgmt.c
 
 #
 # Virtual memory system
