@@ -409,6 +409,7 @@ file      syscall/lseek_syscall.c
 file      syscall/chdir_syscall.c
 file      syscall/getcwd_syscall.c
 file      syscall/dup2_syscall.c
+file      syscall/fork_syscall.c
 
 ########################################
 #                                      #

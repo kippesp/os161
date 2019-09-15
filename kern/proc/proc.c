@@ -58,7 +58,7 @@ struct proc* kproc;
 /*
  * Create a proc structure.
  */
-static struct proc* proc_create(const char* name)
+struct proc* proc_create(const char* name)
 {
   struct proc* proc;
 
@@ -84,11 +84,33 @@ static struct proc* proc_create(const char* name)
   /* File handles table */
   proc->p_fdtable = NULL;
 
-  /* ASST2 stuff */
+  /* ASST2.2 stuff */
+  proc->p_mychild_threads = NULL;
 
-  proc->p_lk_syscall = lock_create("p_lk_syscall");
+  proc->p_ppid = 0;
+  proc->p_pid = 0;
+  proc->p_exited = false;
+  proc->p_exitcode = 0;
 
   return proc;
+}
+
+/*
+ * Destroy the newly created proc structure.  Call this function only
+ * immediately after proc_create.
+ */
+void proc_uncreate(struct proc* proc)
+{
+  KASSERT(proc);
+
+  spinlock_cleanup(&proc->p_lock);
+
+  KASSERT(proc->p_addrspace);
+  KASSERT(proc->p_cwd);
+  KASSERT(proc->p_fdtable);
+
+  kfree(proc->p_name);
+  kfree(proc);
 }
 
 /*
@@ -172,9 +194,9 @@ void proc_destroy(struct proc* proc)
 
   /* File handles table */
 
-//TODO: scan table for open file
-//TODO: close files
-//TODO: clean up locks
+  // TODO: scan table for open file
+  // TODO: close files
+  // TODO: clean up locks
 
   if (proc->p_fdtable) {
     kfree(proc->p_fdtable);
@@ -326,4 +348,55 @@ struct addrspace* proc_setas(struct addrspace* newas)
   proc->p_addrspace = newas;
   spinlock_release(&proc->p_lock);
   return oldas;
+}
+
+/* Remove thread from list of children threads. */
+void proc_unlink_thread(struct thread* thread)
+{
+  struct proc* proc = curproc;
+
+  KASSERT(proc != NULL);
+
+  struct thread_list* tl = proc->p_mychild_threads;
+  struct thread_list* tl_prev = proc->p_mychild_threads;
+
+  KASSERT((tl != NULL) && "Why am I getting called?");
+
+  while (tl->tl_next != NULL) {
+    if (tl->tl_thread == thread) {
+      break;
+    }
+
+    tl_prev = tl;
+    tl = tl->tl_next;
+  }
+
+  KASSERT(tl->tl_thread == thread);
+  KASSERT(tl_prev->tl_next == tl);
+
+  struct thread_list* tl_next = tl->tl_next;
+
+  tl_prev->tl_next = tl_next;
+
+  kfree(tl);
+}
+
+/* Add thread to list of children threads. */
+void proc_link_thread(struct thread* thread)
+{
+  struct proc* proc = curproc;
+
+  KASSERT(proc != NULL);
+
+  struct thread_list* tl_new = proc->p_mychild_threads;
+
+  while (tl_new != NULL) {
+    tl_new = tl_new->tl_next;
+  }
+
+  tl_new = (struct thread_list*)kmalloc(sizeof(struct thread_list));
+  KASSERT(tl_new);
+
+  tl_new->tl_next = NULL;
+  tl_new->tl_thread = thread;
 }

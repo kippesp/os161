@@ -23,4 +23,7 @@ void unassign_pid(pid_t pid);
 
 /* Return the pid of the current process */
 pid_t sys_getpid(void);
+
+/* Return the pid of the provided process */
+pid_t get_procfrompid(struct proc* proc);
 #endif

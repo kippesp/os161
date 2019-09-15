@@ -40,9 +40,8 @@ pid_t allocate_pid(struct proc* proc)
     }
   }
 
-  KASSERT(0 && "Ran out of process table entries");
-
-  return -1;
+  // Returning 0 is not good--this indicates we've run out of numbers.
+  return 0;
 }
 
 pid_t sys_getpid(void)
@@ -56,6 +55,13 @@ void unassign_pid(pid_t pid)
 {
   KASSERT(sysprocs.sp_procs[pid] != NULL);
   sysprocs.sp_procs[pid] = NULL;
+
+  KASSERT(0 && "Not implemented");
+}
+
+pid_t get_procfrompid(struct proc* proc)
+{
+  (void)proc;
 
   KASSERT(0 && "Not implemented");
 }

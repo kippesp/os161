@@ -42,7 +42,7 @@ struct filedesc** init_fdtable(void)
   return fdtable;
 }
 
-struct filedesc** copy_fdtable(struct filedesc** src)
+struct filedesc** dup_fdtable(struct filedesc** src)
 {
   KASSERT(src);
 
@@ -62,6 +62,12 @@ struct filedesc** copy_fdtable(struct filedesc** src)
   }
 
   return fdtable;
+}
+
+void undup_fdtable(struct filedesc** fdtable)
+{
+  (void)fdtable;
+  kprintf("Needs work\n");
 }
 
 /* Return the file descriptor, fd, given a process's file handle, fh */

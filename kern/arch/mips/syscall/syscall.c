@@ -38,6 +38,7 @@
 
 #include <copyinout.h>
 #include <file_syscall.h>
+#include <fork_syscall.h>
 #include <procid_mgmt.h>
 
 /*
@@ -189,6 +190,16 @@ void syscall(struct trapframe* tf)
       err = 0;
       break;
 
+    case SYS_fork: {
+      pid_t pid_or_zero = -1;
+      // Only the parent returns.  This child returns via a new trapframe.
+      err = sys_fork((const_userptr_t)tf, &pid_or_zero);
+
+      if (err == 0) {
+        retval = pid_or_zero;
+      }
+    } break;
+
     default:
       kprintf("Unknown syscall %d\n", callno);
       err = ENOSYS;
@@ -221,17 +232,4 @@ void syscall(struct trapframe* tf)
   KASSERT(curthread->t_curspl == 0);
   /* ...or leak any spinlocks */
   KASSERT(curthread->t_iplhigh_count == 0);
-}
-
-/*
- * Enter user mode for a newly forked process.
- *
- * This function is provided as a reminder. You need to write
- * both it and the code that calls it.
- *
- * Thus, you can trash it and do things another way if you prefer.
- */
-void enter_forked_process(struct trapframe* tf)
-{
-  (void)tf;
 }

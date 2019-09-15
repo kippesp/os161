@@ -82,12 +82,29 @@ struct proc {
 	/* TODO: char* p_currdir; */
 
 	/* ASST2.2 - process support changes */
+
+	/*
+	 * Forked threads ASST2.2 are created with a separate process.  This
+	 * doesn't increase the thread count, but it does get added to the
+	 * p_mychild_threads linked list.
+	 */
+
+	/* linked list of forked children to support waidpid */
+	struct thread_list* p_mychild_threads;
+
 	//struct thread* p_mythread;
 	// TODO: where are the threads kept?
 	pid_t p_ppid;			/* parent's pid */
 	pid_t p_pid;			/* my pid */
 	bool p_exited;
 	int p_exitcode;
+	// TODO: synchronization for waitpid
+};
+
+/* Linked list structure to help track the forked children of a process.  */
+struct thread_list {
+	struct thread_list* tl_next;
+	struct thread* tl_thread;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -95,6 +112,12 @@ extern struct proc* kproc;
 
 /* Call once during system startup to allocate data structures. */
 void proc_bootstrap(void);
+
+/* Create a proc structure */
+struct proc* proc_create(const char* name);
+
+/* Destroy a newly created proc structure */
+void proc_uncreate(struct proc* proc);
 
 /* Create a fresh process for use by runprogram(). */
 struct proc* proc_create_runprogram(const char* name);
@@ -112,8 +135,13 @@ void proc_remthread(struct thread* t);
 struct addrspace* proc_getas(void);
 
 /* Change the address space of the current process, and return the old one. */
-struct addrspace* proc_setas(struct addrspace* );
+struct addrspace* proc_setas(struct addrspace*);
 
+/* Remove thread from list of children threads. */
+void proc_unlink_thread(struct thread* thread);
+
+/* Add thread to list of children threads. */
+void proc_link_thread(struct thread* thread);
 
 #endif /* _PROC_H_ */
 

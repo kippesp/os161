@@ -21,11 +21,16 @@ struct filedesc {
 struct filedesc** init_fdtable(void);
 
 /*
- * Allocate and copy of an existing file descriptor table.  The actual file
- * descriptors are not duplicated but instead updated with refcount + 1.  by
- * one.
+ * Duplicate an existing file descriptor table.  The actual file descriptors
+ * are not duplicated but instead updated with refcount +1.
  */
-struct filedesc** copy_fdtable(struct filedesc** src);
+struct filedesc** dup_fdtable(struct filedesc** src);
+
+/*
+ * TODO: Decrement the refcounts in fdtable.  If the refcount reaches 0, TODO.
+ * Then deallocate fdtable.
+ */
+void undup_fdtable(struct filedesc** fdtable);
 
 /*
  * Return the file descriptor, fd, given a process's file handle, fh.
