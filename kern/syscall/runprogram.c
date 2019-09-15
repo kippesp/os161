@@ -165,8 +165,10 @@ int runprogram(char* progname)
   proc->p_fdtable[STDIN_FILENO] = fd;
 
   /* initalize the system process identifier table */
-  pid_t mypid = sysprocs_init(proc);
-  KASSERT(mypid == 1);
+  sysprocs_init(proc);
+
+  pid_t pid = allocate_pid(proc);
+  proc->p_pid = pid;
 
   /* Warp to user mode. */
   enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,

@@ -6,6 +6,7 @@ SUBDIRS=\
 	simpleopen \
 	lseekargs \
 	simpleerr \
-	dup2
+	dup2 \
+	getpid
 
 .include "$(TOP)/mk/os161.subdir.mk"

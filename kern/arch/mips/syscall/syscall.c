@@ -38,6 +38,7 @@
 
 #include <copyinout.h>
 #include <file_syscall.h>
+#include <procid_mgmt.h>
 
 /*
  * System call dispatcher.
@@ -182,6 +183,11 @@ void syscall(struct trapframe* tf)
       break;
 
       /* process system calls */
+
+    case SYS_getpid:
+      retval = sys_getpid();
+      err = 0;
+      break;
 
     default:
       kprintf("Unknown syscall %d\n", callno);
