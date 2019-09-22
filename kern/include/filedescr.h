@@ -19,7 +19,7 @@ struct filedesc {
 /*
  * Allocate and initialize a new file descriptor table.
  */
-int init_fdtable(void);
+struct filedesc** init_fdtable(void);
 
 /*
  * Return the file descriptor, fd, given a process's file handle, fh.

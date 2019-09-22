@@ -46,7 +46,6 @@
 #include <test.h>
 
 #include <filedescr.h>
-#include <limits.h>
 #include <kern/unistd.h>
 #include <synch.h>
 #include <vnode.h>
@@ -103,19 +102,15 @@ int runprogram(char* progname)
   }
 
   /* Create an empty file handles table */
-  struct proc* proc = curproc;
-  struct filedesc** p_fdtable = kmalloc(sizeof(struct filedesc*) * __OPEN_MAX);
+  struct filedesc** p_fdtable = init_fdtable();
+
   if (p_fdtable == NULL) {
     return ENOMEM;
   }
-  for (int i = 0; i < __OPEN_MAX; i++) {
-    p_fdtable[i] = NULL;
-  }
 
-  spinlock_acquire(&proc->p_lock);
-  KASSERT(proc->p_fdtable == NULL); /* We are the first */
+  struct proc* proc = curproc;
+
   proc->p_fdtable = p_fdtable;
-  spinlock_release(&proc->p_lock);
 
   /* open stdout */
 
@@ -145,10 +140,8 @@ int runprogram(char* progname)
   fd->oflags = O_WRONLY;
   fd->fd_lock = lock_create("fd_stdout");
 
-  spinlock_acquire(&proc->p_lock);
   KASSERT(proc->p_fdtable[STDOUT_FILENO] == NULL);
   proc->p_fdtable[STDOUT_FILENO] = fd;
-  spinlock_release(&proc->p_lock);
 
   /* open stderr */
 

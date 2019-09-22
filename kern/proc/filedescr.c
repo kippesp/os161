@@ -28,14 +28,18 @@ static int check_assigned_fh(struct proc* p, int fh)
   return 0;
 }
 
-int init_fdtable(void) {
+struct filedesc** init_fdtable(void)
+{
   struct filedesc** p_fdtable = kmalloc(sizeof(struct filedesc*) * __OPEN_MAX);
   if (p_fdtable == NULL) {
-    return ENOMEM;
+    return NULL;
   }
+
   for (int i = 0; i < __OPEN_MAX; i++) {
     p_fdtable[i] = NULL;
   }
+
+  return p_fdtable;
 }
 
 /* Return the file descriptor, fd, given a process's file handle, fh */
