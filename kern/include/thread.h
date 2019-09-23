@@ -81,7 +81,7 @@ struct thread {
 	 */
 
 	char t_name[MAX_NAME_LENGTH];
-	const char *t_wchan_name;	/* Name of wait channel, if sleeping */
+	const char* t_wchan_name;	/* Name of wait channel, if sleeping */
 	threadstate_t t_state;		/* State this thread is in */
 
 	/*
@@ -89,10 +89,10 @@ struct thread {
 	 */
 	struct thread_machdep t_machdep; /* Any machine-dependent goo */
 	struct threadlistnode t_listnode; /* Link for run/sleep/zombie lists */
-	void *t_stack;			/* Kernel-level stack */
+	void* t_stack;			/* Kernel-level stack */
 	struct switchframe *t_context;	/* Saved register context (on stack) */
-	struct cpu *t_cpu;		/* CPU thread runs on */
-	struct proc *t_proc;		/* Process thread belongs to */
+	struct cpu* t_cpu;		/* CPU thread runs on */
+	struct proc* t_proc;		/* Process thread belongs to */
 	HANGMAN_ACTOR(t_hangman);	/* Deadlock detector hook */
 
 	/*

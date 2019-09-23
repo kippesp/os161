@@ -61,15 +61,15 @@ struct vnode;
  * without sleeping.
  */
 struct proc {
-	char *p_name;			/* Name of this process */
+	char* p_name;			/* Name of this process */
 	struct spinlock p_lock;		/* Lock for this structure */
 	unsigned p_numthreads;		/* Number of threads in this process */
 
 	/* VM */
-	struct addrspace *p_addrspace;	/* virtual address space */
+	struct addrspace* p_addrspace;	/* virtual address space */
 
 	/* VFS */
-	struct vnode *p_cwd;		/* current working directory */
+	struct vnode* p_cwd;		/* current working directory */
 
 	/* ASST2.1 - file syscalls */
 
@@ -79,28 +79,28 @@ struct proc {
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
-extern struct proc *kproc;
+extern struct proc* kproc;
 
 /* Call once during system startup to allocate data structures. */
 void proc_bootstrap(void);
 
 /* Create a fresh process for use by runprogram(). */
-struct proc *proc_create_runprogram(const char *name);
+struct proc* proc_create_runprogram(const char* name);
 
 /* Destroy a process. */
-void proc_destroy(struct proc *proc);
+void proc_destroy(struct proc* proc);
 
 /* Attach a thread to a process. Must not already have a process. */
-int proc_addthread(struct proc *proc, struct thread *t);
+int proc_addthread(struct proc* proc, struct thread* t);
 
 /* Detach a thread from its process. */
-void proc_remthread(struct thread *t);
+void proc_remthread(struct thread* t);
 
 /* Fetch the address space of the current process. */
-struct addrspace *proc_getas(void);
+struct addrspace* proc_getas(void);
 
 /* Change the address space of the current process, and return the old one. */
-struct addrspace *proc_setas(struct addrspace *);
+struct addrspace* proc_setas(struct addrspace* );
 
 
 #endif /* _PROC_H_ */
