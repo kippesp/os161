@@ -15,11 +15,17 @@ struct filedesc {
   struct lock* fd_lock;   /* synchronization lock */
 };
 
-
 /*
  * Allocate and initialize a new file descriptor table.
  */
 struct filedesc** init_fdtable(void);
+
+/*
+ * Allocate and copy of an existing file descriptor table.  The actual file
+ * descriptors are not duplicated but instead updated with refcount + 1.  by
+ * one.
+ */
+struct filedesc** copy_fdtable(struct filedesc** src);
 
 /*
  * Return the file descriptor, fd, given a process's file handle, fh.

@@ -30,16 +30,38 @@ static int check_assigned_fh(struct proc* p, int fh)
 
 struct filedesc** init_fdtable(void)
 {
-  struct filedesc** p_fdtable = kmalloc(sizeof(struct filedesc*) * __OPEN_MAX);
-  if (p_fdtable == NULL) {
+  struct filedesc** fdtable = kmalloc(sizeof(struct filedesc*) * __OPEN_MAX);
+  if (fdtable == NULL) {
     return NULL;
   }
 
   for (int i = 0; i < __OPEN_MAX; i++) {
-    p_fdtable[i] = NULL;
+    fdtable[i] = NULL;
   }
 
-  return p_fdtable;
+  return fdtable;
+}
+
+struct filedesc** copy_fdtable(struct filedesc** src)
+{
+  KASSERT(src);
+
+  struct filedesc** fdtable = init_fdtable();
+
+  if (!fdtable) {
+    return NULL;
+  }
+
+  for (int i = 0; i < __OPEN_MAX; i++) {
+    if (src[i]) {
+      KASSERT(src[i]->fd_refcnt >= 1);
+      src[i]->fd_refcnt++;
+
+      fdtable[i] = src[i];
+    }
+  }
+
+  return fdtable;
 }
 
 /* Return the file descriptor, fd, given a process's file handle, fh */
