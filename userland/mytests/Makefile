@@ -4,6 +4,7 @@ TOP=../..
 SUBDIRS=\
 	simplewrite \
 	simpleopen \
-	lseekargs
+	lseekargs \
+	simpleerr
 
 .include "$(TOP)/mk/os161.subdir.mk"
