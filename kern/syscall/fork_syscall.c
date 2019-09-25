@@ -8,6 +8,8 @@
 #include <lib.h>
 #include <mips/trapframe.h>
 #include <proc.h>
+#include <synch.h>
+#include <vfs.h>
 
 #include <fork_syscall.h>
 #include <procid_mgmt.h>
@@ -15,12 +17,20 @@
 struct forked_child_init_data {
   struct trapframe* c_tf;
   struct proc* c_proc;
+  struct semaphore* waitforchildstart;
 };
 
-static void forked_child_entrypoint(void* data1, unsigned long data2)
+/*
+ * Enter user mode for a newly forked process.
+ *
+ * This function is provided as a reminder. You need to write
+ * both it and the code that calls it.
+ *
+ * Thus, you can trash it and do things another way if you prefer.
+ */
+static void enter_forked_process(void* data1, unsigned long data2)
 {
   (void)data2;
-  (void)data1;
 
   struct forked_child_init_data* init_data =
       (struct forked_child_init_data*)data1;
@@ -35,46 +45,46 @@ static void forked_child_entrypoint(void* data1, unsigned long data2)
   /* Activate the new thread's address space. */
   as_activate();
 
-  /* Create a new copy of the trapframe on the kernel stack.  Provide its
-   * pointer to mips_usermode. */
+  /*
+   * Create a new copy of the trapframe on the kernel stack.  Provide its
+   * pointer to mips_usermode.
+   */
 
   struct trapframe tf;
   memcpy(&tf, init_data->c_tf, sizeof(struct trapframe));
 
+  kprintf("entering child....\n");
+
+#if 0
+  /* TODO */
+  char c[256];
+  strcpy(c, "/");
+  int res = vfs_chdir(c);
+  KASSERT(res == 0);
+#endif
+
+  /* Signal parent its okay to deallocate the passed trapframe */
+  V(init_data->waitforchildstart);
+
+  /* Return back to user mode in the forked child */
   mips_usermode(&tf);
 }
 
-/*
- * Enter user mode for a newly forked process.
- *
- * This function is provided as a reminder. You need to write
- * both it and the code that calls it.
- *
- * Thus, you can trash it and do things another way if you prefer.
- */
-void enter_forked_process(struct trapframe* tf)
-{
-  // TODO: Use me!
-  (void)tf;
-}
-
-int sys_fork(const_userptr_t tf, pid_t* pid_or_zero)
+int sys_fork(const_userptr_t tf, pid_t* child_pid)
 {
   int res = 0;
 
   /*
-   * Required data to the forked child's entrypoint function is passed via a
-   * single structure.
+   * Data for the forked child's entrypoint function is passed via a single
+   * structure.
    */
   struct forked_child_init_data* cinitd =
       kmalloc(sizeof(struct forked_child_init_data));
 
   if (cinitd == NULL) {
     res = ENOMEM;
-    goto SYS_FORK_ERROR;
+    goto SYS_FORK_ERROR_A;
   }
-
-  // ALLOCATION: cinitd
 
   /*
    * Duplicate the caller's trapframe (which was placed on the stack).  Before
@@ -84,16 +94,11 @@ int sys_fork(const_userptr_t tf, pid_t* pid_or_zero)
   cinitd->c_tf = (struct trapframe*)kmalloc(sizeof(struct trapframe));
 
   if (cinitd->c_tf == NULL) {
-    kfree(cinitd);
     res = ENOMEM;
-    goto SYS_FORK_ERROR;
+    goto SYS_FORK_ERROR_B;
   }
 
-  res = copyin(tf, cinitd->c_tf, sizeof(struct trapframe));
-  KASSERT((res == 0) && "This should not have failed");
-
-  // ALLOCATION: cinitd->c_tf
-  // ALLOCATION: cinitd
+  memcpy(cinitd->c_tf, tf, sizeof(struct trapframe));
 
   /*
    * ASST2 does not go beyond the one thread per process model.  Create a new
@@ -104,14 +109,8 @@ int sys_fork(const_userptr_t tf, pid_t* pid_or_zero)
 
   if (cinitd->c_proc == NULL) {
     res = ENOMEM;
-    kfree(cinitd->c_tf);
-    kfree(cinitd);
-    goto SYS_FORK_ERROR;
+    goto SYS_FORK_ERROR_C;
   }
-
-  // ALLOCATION: cinitd->c_proc
-  // ALLOCATION: cinitd->c_tf
-  // ALLOCATION: cinitd
 
   /*
    * Duplicate the caller's address space for the child.
@@ -120,16 +119,8 @@ int sys_fork(const_userptr_t tf, pid_t* pid_or_zero)
 
   if (cinitd->c_proc->p_addrspace == NULL) {
     res = ENOMEM;
-    proc_uncreate(cinitd->c_proc);
-    kfree(cinitd->c_tf);
-    kfree(cinitd);
-    goto SYS_FORK_ERROR;
+    goto SYS_FORK_ERROR_D;
   }
-
-  // ALLOCATION: cinitd->c_proc->p_addrspace
-  // ALLOCATION: cinitd->c_proc
-  // ALLOCATION: cinitd
-  // ALLOCATION: cinitd->c_tf
 
   /*
    * Duplicate the caller's open files table and bump the refcount in the
@@ -139,62 +130,68 @@ int sys_fork(const_userptr_t tf, pid_t* pid_or_zero)
 
   if (cinitd->c_proc->p_fdtable == NULL) {
     res = ENOMEM;
-    as_destroy(cinitd->c_proc->p_addrspace);
-    cinitd->c_proc->p_addrspace = NULL;
-    proc_uncreate(cinitd->c_proc);
-    kfree(cinitd->c_tf);
-    kfree(cinitd);
-    goto SYS_FORK_ERROR;
+    goto SYS_FORK_ERROR_E;
   }
 
-  // ALLOCATION: cinitd->c_proc->p_fdtable
-  // ALLOCATION: cinitd->c_proc->p_addrspace
-  // ALLOCATION: cinitd->c_proc
-  // ALLOCATION: cinitd
-  // ALLOCATION: cinitd->c_tf
-
   /*
-   * Give the new process its own pid and tell it who its parent is.
+   * Give the new process its own pid and tell it who its parent is.  Record
+   * both the parent's ID and proc address in the rare chance the pids roll;
+   * used as a double check to see if parent has died.
    */
   cinitd->c_proc->p_pid = allocate_pid(cinitd->c_proc);
+  cinitd->c_proc->p_parent_proc = proc;
+  cinitd->c_proc->p_ppid = proc->p_pid;
 
   /* A pid==0 here indicates there are no more pids in the sysprocs table */
   if (cinitd->c_proc->p_pid == 0) {
     res = ENPROC;
-    undup_fdtable(cinitd->c_proc->p_fdtable);
-    cinitd->c_proc->p_fdtable = NULL;
-    as_destroy(cinitd->c_proc->p_addrspace);
-    cinitd->c_proc->p_addrspace = NULL;
-    proc_uncreate(cinitd->c_proc);
-    kfree(cinitd->c_tf);
-    kfree(cinitd);
-    goto SYS_FORK_ERROR;
+    goto SYS_FORK_ERROR_F;
   }
 
-  cinitd->c_proc->p_ppid = proc->p_pid;
+  /* Record the new pid in the parent to support waitpid. */
+  res = proc_link_thread(cinitd->c_proc->p_pid);
+
+  if (res) {
+    goto SYS_FORK_ERROR_G;
+  }
 
   /*
    * Call the entrypoint for the forked child
    */
 
-  pid_t ppid = proc->p_pid;
+  cinitd->waitforchildstart = sem_create("waitchildstart", 0);
+
+  if (cinitd->waitforchildstart == NULL) {
+    res = ENOMEM;
+    goto SYS_FORK_ERROR_H;
+  }
+
+  /*
+   * Call the entrypoint for the forked child
+   */
+
   pid_t cpid = cinitd->c_proc->p_pid;
-  res = thread_fork(proc->p_name, cinitd->c_proc, forked_child_entrypoint,
-                    (void*)&cinitd, 0);
+  res = thread_fork(proc->p_name, cinitd->c_proc, enter_forked_process,
+                    (void*)cinitd, 0);
+
+  if (res != 0) {
+    goto SYS_FORK_ERROR_I;
+  }
+
   // TODO: Race Condition!  When can I free this?  A lock in the struct?
   // kfree(cinitd);
 
-  KASSERT(res && "Didn't work");
+  /* wait for child to be ready before deallocating the trapframe */
+  // TODO: change to lock
+  kprintf("Waiting for child to start....\n");
+  P(cinitd->waitforchildstart);
+  kprintf("....\n");
+  kprintf("Waiting for child to start....DONE\n");
+  //sem_destroy(cinitd->waitforchildstart);
 
-  if (ppid == proc->p_pid) {
-    *pid_or_zero = 0;
-  }
-  else {
-    *pid_or_zero = cpid;
-  }
+  // KASSERT(res && "Didn't work");
 
-  kfree(cinitd->c_tf);
-  kfree(cinitd);
+  *child_pid = cpid;
 
   goto SYS_FORK_ERROR_FREE;
 
@@ -204,7 +201,23 @@ SYS_FORK_ERROR_FREE:
   KASSERT(res == 0);
   return 0;
 
-SYS_FORK_ERROR:
+SYS_FORK_ERROR_I:
+  sem_destroy(cinitd->waitforchildstart);
+SYS_FORK_ERROR_H:
+  proc_unlink_thread(cinitd->c_proc->p_pid);
+SYS_FORK_ERROR_G:
+  unassign_pid(cinitd->c_proc->p_pid);
+SYS_FORK_ERROR_F:
+  undup_fdtable(cinitd->c_proc->p_fdtable);
+SYS_FORK_ERROR_E:
+  as_destroy(cinitd->c_proc->p_addrspace);
+SYS_FORK_ERROR_D:
+  proc_uncreate(cinitd->c_proc);
+SYS_FORK_ERROR_C:
+  kfree(cinitd->c_tf);
+SYS_FORK_ERROR_B:
+  kfree(cinitd);
+SYS_FORK_ERROR_A:
   KASSERT(res != 0);
   return res;
 }

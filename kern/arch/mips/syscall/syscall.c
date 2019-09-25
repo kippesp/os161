@@ -193,12 +193,12 @@ void syscall(struct trapframe* tf)
       break;
 
     case SYS_fork: {
-      pid_t pid_or_zero = -1;
-      // Only the parent returns.  This child returns via a new trapframe.
-      err = sys_fork((const_userptr_t)tf, &pid_or_zero);
+      pid_t childpid = -1;
+      // Only the parent returns here; the child returns via its trapframe.
+      err = sys_fork((const_userptr_t)tf, &childpid);
 
       if (err == 0) {
-        retval = pid_or_zero;
+        retval = childpid;
       }
     } break;
 
