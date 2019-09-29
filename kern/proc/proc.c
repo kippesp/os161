@@ -50,6 +50,8 @@
 #include <vnode.h>
 #include <synch.h>
 
+#include <kern/errno.h>
+
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -91,7 +93,15 @@ struct proc* proc_create(const char* name)
   proc->p_pid = 0;
   proc->p_parent_proc = NULL;
 
+  spinlock_init(&proc->p_exited_lock);
+  proc->p_exitedcv = cv_create("p_exitedcv");
+  if (proc->p_exitedcv == NULL) {
+    kfree(proc);
+    return NULL;
+  }
+
   proc->p_exited = false;
+  proc->p_has_waiting_parent = false;
   proc->p_exitcode = 0;
 
   return proc;
@@ -353,38 +363,38 @@ struct addrspace* proc_setas(struct addrspace* newas)
 }
 
 /* Remove thread from list of children threads. */
-void proc_unlink_thread(struct thread* thread)
+void proc_unlink_thread(pid_t pid)
 {
   struct proc* proc = curproc;
 
   KASSERT(proc != NULL);
 
-  struct thread_list* tl = proc->p_mychild_threads;
+  struct thread_list* tl_found = proc->p_mychild_threads;
   struct thread_list* tl_prev = proc->p_mychild_threads;
 
-  KASSERT((tl != NULL) && "Why am I getting called?");
+  KASSERT((tl_found != NULL) && "Why am I getting called?");
 
-  while (tl->tl_next != NULL) {
-    if (tl->tl_thread == thread) {
+  while (tl_found->tl_next != NULL) {
+    if (tl_found->tl_pid == pid) {
       break;
     }
 
-    tl_prev = tl;
-    tl = tl->tl_next;
+    tl_prev = tl_found;
+    tl_found = tl_found->tl_next;
   }
 
-  KASSERT(tl->tl_thread == thread);
-  KASSERT(tl_prev->tl_next == tl);
+  KASSERT(tl_found->tl_pid == pid);
+  KASSERT(tl_prev->tl_next == tl_found);
 
-  struct thread_list* tl_next = tl->tl_next;
+  struct thread_list* tl_next = tl_found->tl_next;
 
   tl_prev->tl_next = tl_next;
 
-  kfree(tl);
+  kfree(tl_found);
 }
 
 /* Add thread to list of children threads. */
-void proc_link_thread(struct thread* thread)
+int proc_link_thread(pid_t pid)
 {
   struct proc* proc = curproc;
 
@@ -397,8 +407,12 @@ void proc_link_thread(struct thread* thread)
   }
 
   tl_new = (struct thread_list*)kmalloc(sizeof(struct thread_list));
-  KASSERT(tl_new);
+
+  if (tl_new == NULL)
+    return ENOMEM;
 
   tl_new->tl_next = NULL;
-  tl_new->tl_thread = thread;
+  tl_new->tl_pid = pid;
+
+  return 0;
 }

@@ -40,6 +40,7 @@
 #include <file_syscall.h>
 #include <fork_syscall.h>
 #include <procid_mgmt.h>
+#include <waitpid_syscall.h>
 
 /*
  * System call dispatcher.
@@ -197,6 +198,16 @@ void syscall(struct trapframe* tf)
 
       if (err == 0) {
         retval = pid_or_zero;
+      }
+    } break;
+
+    case SYS_waitpid: {
+      pid_t pid_ret;
+      err = sys_waitpid((pid_t)tf->tf_a0, (userptr_t)tf->tf_a1, (int)tf->tf_a2,
+                        &pid_ret);
+
+      if (err == 0) {
+        retval = pid_ret;
       }
     } break;
 

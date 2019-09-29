@@ -39,6 +39,8 @@
 #include <filedescr.h>
 #include <spinlock.h>
 
+#include <synch.h>
+
 struct addrspace;
 struct thread;
 struct vnode;
@@ -95,18 +97,25 @@ struct proc {
 	//struct thread* p_mythread;
 	// TODO: where are the threads kept?
 	pid_t p_ppid;			/* parent's pid */
+	/* TODO: store the parent's proc address just in case there is duplicate */
 	pid_t p_pid;			/* my pid */
 	struct proc* p_parent_proc;	/* protection that this is our parent */
 
+	struct spinlock p_exited_lock;	/* lock to check p_exited flag */
 	bool p_exited;
-	int p_exitcode;
+
+	// TODO: struct spinlock p_has_waiting_parent_lock;
+	bool p_has_waiting_parent;	/* parent is sleeping for me with waitpid */
+
+	struct cv* p_exitedcv;		/* condition variable for a waiting parent */
+	int p_exitcode;			/* the process's exit code at termination */
 	// TODO: synchronization for waitpid
 };
 
 /* Linked list structure to help track the forked children of a process.  */
 struct thread_list {
 	struct thread_list* tl_next;
-	struct thread* tl_thread;
+	pid_t tl_pid;
 };
 
 /* This is the process structure for the kernel and for kernel-only threads. */
@@ -140,10 +149,10 @@ struct addrspace* proc_getas(void);
 struct addrspace* proc_setas(struct addrspace*);
 
 /* Remove thread from list of children threads. */
-void proc_unlink_thread(struct thread* thread);
+void proc_unlink_thread(pid_t pid);
 
 /* Add thread to list of children threads. */
-void proc_link_thread(struct thread* thread);
+int proc_link_thread(pid_t pid);
 
 #endif /* _PROC_H_ */
 

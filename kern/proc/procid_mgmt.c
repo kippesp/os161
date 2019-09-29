@@ -56,12 +56,37 @@ void unassign_pid(pid_t pid)
   KASSERT(sysprocs.sp_procs[pid] != NULL);
   sysprocs.sp_procs[pid] = NULL;
 
-  KASSERT(0 && "Not implemented");
+  KASSERT(0 && "Not implemented: unassign_pid");
 }
 
-pid_t get_procfrompid(struct proc* proc)
+struct proc* get_proc_from_pid(pid_t pid)
 {
-  (void)proc;
+  struct proc* rvalue = NULL;
 
-  KASSERT(0 && "Not implemented");
+  spinlock_acquire(&sysprocs.sp_lock);
+
+  /* scan sysprocs table for the pid */
+  for (int i = 0; i <= NUM_PROCESSES_MAX; i++) {
+    if (sysprocs.sp_procs[i] == NULL)
+      continue;
+
+    if (sysprocs.sp_procs[i]->p_pid == pid) {
+      rvalue = sysprocs.sp_procs[i];
+      break;
+    }
+  }
+
+  spinlock_release(&sysprocs.sp_lock);
+
+  return rvalue;
+}
+
+bool is_pid_my_child(pid_t pid)
+{
+  struct proc* proc = curproc;
+
+  KASSERT(proc->p_mychild_threads);
+
+  (void)pid;
+  KASSERT(0 && "Not implemented: is_pid_my_child");
 }

@@ -25,5 +25,7 @@ void unassign_pid(pid_t pid);
 pid_t sys_getpid(void);
 
 /* Return the pid of the provided process */
-pid_t get_procfrompid(struct proc* proc);
+struct proc* get_proc_from_pid(pid_t pid);
+
+bool is_pid_my_child(pid_t pid);
 #endif
