@@ -96,6 +96,8 @@ struct proc {
 	// TODO: where are the threads kept?
 	pid_t p_ppid;			/* parent's pid */
 	pid_t p_pid;			/* my pid */
+	struct proc* p_parent_proc;	/* protection that this is our parent */
+
 	bool p_exited;
 	int p_exitcode;
 	// TODO: synchronization for waitpid

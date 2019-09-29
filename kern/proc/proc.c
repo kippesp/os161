@@ -89,6 +89,8 @@ struct proc* proc_create(const char* name)
 
   proc->p_ppid = 0;
   proc->p_pid = 0;
+  proc->p_parent_proc = NULL;
+
   proc->p_exited = false;
   proc->p_exitcode = 0;
 
