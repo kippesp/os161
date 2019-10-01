@@ -101,14 +101,17 @@ struct proc {
 	pid_t p_pid;			/* my pid */
 	struct proc* p_parent_proc;	/* protection that this is our parent */
 
-	struct spinlock p_exited_lock;	/* lock to check p_exited flag */
+	// TODO: p_exited_lock implementation
+	// TODO: use with no sleep checking
+	//struct spinlock p_exited_lock;	/* lock to check p_exited flag (non-sleeping) */
+
+	struct lock* p_lk_exited;	/* lock for waiting and exited bools */
+	struct cv* p_cv_exited;		/* condition variable for a p_exited */
+	//bool p_has_waiting_parent;	/* parent is waiting for me with waitpid */
+	// TODO: implicit to have waiting parent....delete this
 	bool p_exited;
 
-	// TODO: struct spinlock p_has_waiting_parent_lock;
-	bool p_has_waiting_parent;	/* parent is sleeping for me with waitpid */
-
-	struct cv* p_exitedcv;		/* condition variable for a waiting parent */
-	int p_exitcode;			/* the process's exit code at termination */
+	int p_exit_status;		/* the process's exit code at termination */
 	// TODO: synchronization for waitpid
 };
 

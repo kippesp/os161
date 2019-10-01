@@ -411,6 +411,7 @@ file      syscall/getcwd_syscall.c
 file      syscall/dup2_syscall.c
 file      syscall/fork_syscall.c
 file      syscall/waitpid_syscall.c
+file      syscall/exit_syscall.c
 
 ########################################
 #                                      #

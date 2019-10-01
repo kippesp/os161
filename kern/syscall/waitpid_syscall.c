@@ -4,7 +4,9 @@
 #include <types.h>
 
 #include <copyinout.h>
-#include <lib.h>
+#include <current.h>
+#include <proc.h>
+#include <synch.h>
 
 #include <procid_mgmt.h>
 #include <waitpid_syscall.h>
@@ -19,19 +21,33 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   int rstatus = 0;
 
   /* short-circuit check that status pointer is valid */
+
+  /* TODO: check alignment */
+  KASSERT(sizeof(unsigned int) >= sizeof(userptr_t));
+  unsigned int align_mask = ~(unsigned int)sizeof(int);
+  if ((unsigned int)tgt_status != ((unsigned int)tgt_status & align_mask)) {
+    kprintf("*** PAUL: status address is not aligned\n");
+  }
+
   if (copyin(tgt_status, &rstatus, sizeof(int))) {
     res = EFAULT;
     goto SYS_WAITPID_ERROR;
   }
 
   /* check for invalid options */
+
+#if 0
   int supported_options = WNOHANG;
+#else
+  int supported_options = 0;
+#endif
+
   if (options & ~supported_options) {
     res = EINVAL;
     goto SYS_WAITPID_ERROR;
   }
 
-  /* check pid is known */
+  /* check pid exists/is known */
 
   struct proc* tgt_proc = get_proc_from_pid(tgt_pid);
 
@@ -47,21 +63,88 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
     goto SYS_WAITPID_ERROR;
   }
 
-  // TODO: for WNOHANG options; if child hasn't exited, return now
-  // TODO: lock p_exited_lock
-  // TODO: check p_exited
+#if 0
+  /*
+   * If WNOHANG option is specified, check if child has exited.  If not,
+   * return now with 0.
+   */
+  if (options & WNOHANG) {
+    spinlock_acquire(&tgt_proc->p_exited_lock);
+    bool has_exited = tgt_proc->p_exited;
+    spinlock_release(&tgt_proc->p_exited_lock);
+
+    if (!has_exited)
+      return 0;
+  }
+#endif
+
+  // TODO: Set p_has_waiting_parent (use spinlock)
+
+  /* sleep until the child exits */
+
+  lock_acquire(tgt_proc->p_lk_exited);
+
+  // TODO: delete tgt_proc->p_has_waiting_parent = true;
+
+  while (!tgt_proc->p_exited) {
+    cv_wait(tgt_proc->p_cv_exited, tgt_proc->p_lk_exited);
+  }
+
+  lock_release(tgt_proc->p_lk_exited);
+
+  /*
+   * At this point, the child is on its way to exiting.  Wait for the
+   * number of threads to be 0.
+   */
+
+#if 0
+  bool all_threads_exited = false;
+  do {
+    spinlock_acquire(&tgt_proc->p_lock);
+
+    if (tgt_proc->p_numthreads == 0) {
+      all_threads_exited = true;
+    } else {
+      // TODO: create a wait channel
+    }
+
+    spinlock_release(&tgt_proc->p_lock);
+  } while (all_threads_exited == false);
+#endif
+
+  /*
+   * At this point, the child has effectively exited, but the process structure
+   * still exists.  The parent can freely manipulate the child's process
+   * structure and do whatever to clean up the terminated process then delete
+   * it.
+   */
+
+  rstatus = tgt_proc->p_exit_status;
+
+  /* disassociate the child proc from the parent */
+
+  // TODO: struct proc* proc = curproc;
+
+  proc_unlink_thread(tgt_pid);
+
+  /*
+   * If the zombie child forked its own children, reparent these threads to
+   * themselves (i.e. set ppid := pid).
+   */
+  KASSERT(tgt_proc->p_mychild_threads == NULL);  // TODO
+
+  // TODO: set return parm status if not null
+  // TODO: deallocate all the stuff in the child process struct
+  // TODO: what to do if the child forked its own children?
+  // TODO:    should I become the parent of these threads?
+
+  // TODO: perhaps create a test x86 app for my os161 locks; then test out
+  //       some of these issues with fork of forked children.
 
   // See userland/testbin/badcall/bad_waitpid.c
   // wait_badpid
 
-  // Check pid exists
-  // Check I am that pid's parent
-
-
-  // TODO: Consider WNOHANG options (return fast if not yet exited)
-  // TODO: This is supported by ./userland/bin/sh/sh.c
-
-
+  proc_destroy(tgt_proc);
   /*
   So basically, we need to check:
 
@@ -77,7 +160,10 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   any more!
   */
 
-  (void)rstatus;
+  if (copyout(&rstatus, tgt_status, sizeof(int))) {
+    res = EFAULT;
+    goto SYS_WAITPID_ERROR;
+  }
 
   goto SYS_WAITPID_ERROR_FREE;
 

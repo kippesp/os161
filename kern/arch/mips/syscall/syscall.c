@@ -41,6 +41,7 @@
 #include <fork_syscall.h>
 #include <procid_mgmt.h>
 #include <waitpid_syscall.h>
+#include <exit_syscall.h>
 
 /*
  * System call dispatcher.
@@ -210,6 +211,9 @@ void syscall(struct trapframe* tf)
         retval = pid_ret;
       }
     } break;
+
+    case SYS__exit:
+      sys__exit((int)tf->tf_a0);
 
     default:
       kprintf("Unknown syscall %d\n", callno);

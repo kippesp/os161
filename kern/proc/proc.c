@@ -93,16 +93,23 @@ struct proc* proc_create(const char* name)
   proc->p_pid = 0;
   proc->p_parent_proc = NULL;
 
-  spinlock_init(&proc->p_exited_lock);
-  proc->p_exitedcv = cv_create("p_exitedcv");
-  if (proc->p_exitedcv == NULL) {
+  // spinlock_init(&proc->p_exited_lock);
+
+  proc->p_lk_exited = lock_create("p_lk_exited");
+  if (proc->p_lk_exited == NULL) {
+    kfree(proc);
+    return NULL;
+  }
+
+  proc->p_cv_exited = cv_create("p_cv_exited");
+  if (proc->p_cv_exited == NULL) {
     kfree(proc);
     return NULL;
   }
 
   proc->p_exited = false;
-  proc->p_has_waiting_parent = false;
-  proc->p_exitcode = 0;
+  // proc->p_has_waiting_parent = false;
+  proc->p_exit_status = 0;
 
   return proc;
 }
@@ -363,6 +370,7 @@ struct addrspace* proc_setas(struct addrspace* newas)
 }
 
 /* Remove thread from list of children threads. */
+// TODO: to support unlinking from zombies, we will need two parameters
 void proc_unlink_thread(pid_t pid)
 {
   struct proc* proc = curproc;
