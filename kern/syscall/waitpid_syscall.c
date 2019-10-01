@@ -42,9 +42,6 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 
   /* check pid is child of current process */
 
-  // TODO: check these two guys
-  // void proc_link_thread(struct thread* thread)
-  // void proc_unlink_thread(struct thread* thread)
   if (!is_pid_my_child(tgt_pid)) {
     res = ECHILD;
     goto SYS_WAITPID_ERROR;

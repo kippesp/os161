@@ -27,5 +27,6 @@ pid_t sys_getpid(void);
 /* Return the pid of the provided process */
 struct proc* get_proc_from_pid(pid_t pid);
 
+/* Return true if pid is child of the current process */
 bool is_pid_my_child(pid_t pid);
 #endif

@@ -84,9 +84,17 @@ struct proc* get_proc_from_pid(pid_t pid)
 bool is_pid_my_child(pid_t pid)
 {
   struct proc* proc = curproc;
+  struct thread_list* tl_found = proc->p_mychild_threads;
 
-  KASSERT(proc->p_mychild_threads);
+  while (tl_found != NULL) {
+    tl_found = tl_found->tl_next;
+    if (tl_found->tl_pid == pid) {
+      break;
+    }
+  }
 
-  (void)pid;
-  KASSERT(0 && "Not implemented: is_pid_my_child");
+  if (tl_found)
+    return true;
+
+  return false;
 }
