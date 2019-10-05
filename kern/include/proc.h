@@ -71,6 +71,10 @@ struct proc {
 	/* VFS */
 	struct vnode* p_cwd;		/* current working directory */
 
+	/* ASST2 */
+
+	struct lock* p_lk_syscall;	/* lock for syscalls to use */
+
 	/* ASST2.1 - file syscalls */
 
 	struct filedesc** p_fdtable;	/* table of open files */

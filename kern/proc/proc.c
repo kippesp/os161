@@ -48,6 +48,7 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <synch.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -82,6 +83,10 @@ static struct proc* proc_create(const char* name)
 
   /* File handles table */
   proc->p_fdtable = NULL;
+
+  /* ASST2 stuff */
+
+  proc->p_lk_syscall = lock_create("p_lk_syscall");
 
   return proc;
 }

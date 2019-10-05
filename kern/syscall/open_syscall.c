@@ -80,7 +80,7 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
 
   int fh = -1;
 
-  spinlock_acquire(&p->p_lock);
+  lock_acquire(p->p_lk_syscall);
   for (int i = STDERR_FILENO + 1; i < __OPEN_MAX; i++) {
     if (p->p_fdtable[i] == NULL) {
       fh = i;
@@ -90,27 +90,19 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
 
   /* no space in the process's table? */
   if (fh == -1) {
-    spinlock_release(&p->p_lock);
+    lock_release(p->p_lk_syscall);
     res = EMFILE;
     goto SYS_OPEN_ERROR;
   }
 
-  /* Optimistically assign the file descriptor into the file table so that the
-   * spinlock can be released before calling vfs_open().
-   */
-  lock_acquire(fd->fd_lock);
-  p->p_fdtable[fh] = fd;
-
   /* Call vfs_open() to complete the open.  If successful the file descriptor
    * offset will be adjusted if the file was opened for writing with O_APPEND.
    */
-  spinlock_release(&p->p_lock);
 
   res = vfs_open(kfilename, oflags, 0666, &fd->fd_ofile);
   if (res) {
-    spinlock_acquire(&p->p_lock);
     destroy_fd(fd);
-    spinlock_release(&p->p_lock);
+    lock_release(p->p_lk_syscall);
     goto SYS_OPEN_ERROR;
   }
 
@@ -119,9 +111,8 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
     res = VOP_STAT(fd->fd_ofile, &statbuf);
 
     if (res) {
-      spinlock_acquire(&p->p_lock);
       destroy_fd(fd);
-      spinlock_release(&p->p_lock);
+      lock_release(p->p_lk_syscall);
       goto SYS_OPEN_ERROR;
     }
 
@@ -135,18 +126,18 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
   fd->fd_refcnt++;
   fd->oflags = oflags;
   p->p_fdtable[fh] = fd;
-  lock_release(fd->fd_lock);
+  lock_release(p->p_lk_syscall);
   *fh_ret = fh;
 
   goto SYS_OPEN_ERROR_FREE;
 
 SYS_OPEN_ERROR_FREE:
-  KASSERT(spinlock_do_i_hold(&p->p_lock) == 0);
+  KASSERT(lock_do_i_hold(p->p_lk_syscall) == 0);
   KASSERT(res == 0);
   return 0;
 
 SYS_OPEN_ERROR:
-  KASSERT(spinlock_do_i_hold(&p->p_lock) == 0);
+  KASSERT(lock_do_i_hold(p->p_lk_syscall) == 0);
   KASSERT(res != 0);
   return res;
 }
