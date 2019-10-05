@@ -86,7 +86,12 @@ struct proc* proc_create(const char* name)
   /* File handles table */
   proc->p_fdtable = NULL;
 
+  /* ASST2 stuff */
+
+  proc->p_lk_syscall = lock_create("p_lk_syscall");
+
   /* ASST2.2 stuff */
+
   proc->p_mychild_threads = NULL;
 
   proc->p_ppid = 0;
