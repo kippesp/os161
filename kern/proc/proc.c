@@ -382,28 +382,30 @@ void proc_unlink_thread(pid_t pid)
 
   KASSERT(proc != NULL);
 
-  struct thread_list* tl_found = proc->p_mychild_threads;
+  struct thread_list** tl_head = &proc->p_mychild_threads;
   struct thread_list* tl_prev = proc->p_mychild_threads;
+  struct thread_list* tl_tgt = proc->p_mychild_threads;
 
-  KASSERT((tl_found != NULL) && "Why am I getting called?");
+  KASSERT((tl_tgt != NULL) && "Why am I getting called?");
 
-  while (tl_found->tl_next != NULL) {
-    if (tl_found->tl_pid == pid) {
-      break;
-    }
+  /* find the pid in the list */
+  while (tl_tgt->tl_pid != pid) {
+    tl_prev = tl_tgt;
+    tl_tgt = tl_tgt->tl_next;
 
-    tl_prev = tl_found;
-    tl_found = tl_found->tl_next;
+    KASSERT(tl_tgt && "Ran out of children pids");
   }
 
-  KASSERT(tl_found->tl_pid == pid);
-  KASSERT(tl_prev->tl_next == tl_found);
+  KASSERT(tl_tgt->tl_pid == pid);
 
-  struct thread_list* tl_next = tl_found->tl_next;
-
-  tl_prev->tl_next = tl_next;
-
-  kfree(tl_found);
+  if (*tl_head == tl_tgt) {
+    *tl_head = tl_tgt->tl_next;
+    kfree(tl_tgt);
+  }
+  else {
+    tl_prev->tl_next = tl_tgt->tl_next;
+    kfree(tl_tgt);
+  }
 }
 
 /* Add thread to list of children threads. */
@@ -413,19 +415,25 @@ int proc_link_thread(pid_t pid)
 
   KASSERT(proc != NULL);
 
-  struct thread_list* tl_new = proc->p_mychild_threads;
+  struct thread_list* tl_prev = proc->p_mychild_threads;
+  struct thread_list** tl = &proc->p_mychild_threads;
 
-  while (tl_new != NULL) {
-    tl_new = tl_new->tl_next;
+  while (*tl != NULL) {
+    tl_prev = *tl;
+    tl = &((*tl)->tl_next);
   }
 
-  tl_new = (struct thread_list*)kmalloc(sizeof(struct thread_list));
+  *tl = (struct thread_list*)kmalloc(sizeof(struct thread_list));
 
-  if (tl_new == NULL)
+  if (*tl == NULL)
     return ENOMEM;
 
-  tl_new->tl_next = NULL;
-  tl_new->tl_pid = pid;
+  if (tl_prev) {
+    tl_prev->tl_next = *tl;
+  }
+
+  (*tl)->tl_next = NULL;
+  (*tl)->tl_pid = pid;
 
   return 0;
 }

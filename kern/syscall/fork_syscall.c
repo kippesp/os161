@@ -39,7 +39,7 @@ static void enter_forked_process(void* data1, unsigned long data2)
    * The forked child starts with a fresh stack (i.e. no exists calls)
    * and a trapframe based on the parent's.
    */
-  init_data->c_tf->tf_a3 = 0;   /* return value */
+  init_data->c_tf->tf_a3 = 0;   /* return value indicating a child thread */
   init_data->c_tf->tf_epc += 4; /* skip to next instruction */
 
   /* Activate the new thread's address space. */
@@ -53,7 +53,7 @@ static void enter_forked_process(void* data1, unsigned long data2)
   struct trapframe tf;
   memcpy(&tf, init_data->c_tf, sizeof(struct trapframe));
 
-  kprintf("entering child....\n");
+  // kprintf("entering child....\n");
 
 #if 0
   /* TODO */
@@ -73,6 +73,8 @@ static void enter_forked_process(void* data1, unsigned long data2)
 int sys_fork(const_userptr_t tf, pid_t* child_pid)
 {
   int res = 0;
+
+  // TODO: lock on the syscall lock???
 
   /*
    * Data for the forked child's entrypoint function is passed via a single
@@ -183,11 +185,11 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
 
   /* wait for child to be ready before deallocating the trapframe */
   // TODO: change to lock
-  kprintf("Waiting for child to start....\n");
+  // kprintf("Waiting for child to start....\n");
   P(cinitd->waitforchildstart);
-  kprintf("....\n");
-  kprintf("Waiting for child to start....DONE\n");
-  //sem_destroy(cinitd->waitforchildstart);
+  // kprintf("....\n");
+  // kprintf("Waiting for child to start....DONE\n");
+  // sem_destroy(cinitd->waitforchildstart);
 
   // KASSERT(res && "Didn't work");
 

@@ -31,17 +31,23 @@ void sysprocs_init(struct proc* init_proc)
  */
 pid_t allocate_pid(struct proc* proc)
 {
+  pid_t new_pid = 0;
+
+  spinlock_acquire(&sysprocs.sp_lock);
+
   for (int i = 0; i <= NUM_PROCESSES_MAX; i++) {
     if (sysprocs.sp_procs[i] == NULL) {
       sysprocs.sp_procs[i] = proc;
-      pid_t assigned_pid = sysprocs.next_pid;
+      new_pid = sysprocs.next_pid;
       sysprocs.next_pid++;
-      return assigned_pid;
+      break;
     }
   }
 
+  spinlock_release(&sysprocs.sp_lock);
+
   // Returning 0 is not good--this indicates we've run out of numbers.
-  return 0;
+  return new_pid;
 }
 
 pid_t sys_getpid(void)
@@ -84,16 +90,25 @@ struct proc* get_proc_from_pid(pid_t pid)
 bool is_pid_my_child(pid_t pid)
 {
   struct proc* proc = curproc;
-  struct thread_list* tl_found = proc->p_mychild_threads;
+  struct thread_list* tl = proc->p_mychild_threads;
 
-  while (tl_found != NULL) {
-    tl_found = tl_found->tl_next;
-    if (tl_found->tl_pid == pid) {
-      break;
-    }
+  if (tl == NULL) {
+    return false;
   }
 
-  if (tl_found)
+  spinlock_acquire(&sysprocs.sp_lock);
+
+  while (tl != NULL) {
+    if (tl->tl_pid == pid) {
+      break;
+    }
+
+    tl = tl->tl_next;
+  }
+
+  spinlock_release(&sysprocs.sp_lock);
+
+  if (tl)
     return true;
 
   return false;

@@ -15,6 +15,8 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 {
   (void)rvalue;
 
+  // TODO: lock on the syscall lock???
+
   int res = 0;
 
   /* track return status internally since status is permitted to be NULL */

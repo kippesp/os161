@@ -6,6 +6,7 @@
 
 struct proc;
 
+/* system process ID list */
 struct sysprocs {
   struct spinlock sp_lock;
   struct proc** sp_procs;
