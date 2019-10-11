@@ -50,6 +50,41 @@
 #include <synch.h>
 #include <vnode.h>
 
+/* Helper function to create stdin/out/err */
+static struct filedesc* open_console_device(int OFLAGS, const char* name)
+{
+  char fn[80];
+  struct vnode* fd_ofile = NULL;
+  int open_res;
+  struct filedesc* fd = NULL;
+
+  strcpy(fn, "con:");
+
+  open_res = vfs_open(fn, OFLAGS, 0666, &fd_ofile);
+  KASSERT((open_res == 0) && "Error opening con: device");
+
+  /* vn_fs being NULL is used to determine if syscalls are to mess with things
+     like offsets and positioning. */
+  KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
+
+  KASSERT(strlen(name) < 75);
+
+  char lk_name[80];
+  strcpy(lk_name, "fd_");
+  strcat(lk_name, name);
+
+  /* Create the file descriptor */
+  fd = kmalloc(sizeof(struct filedesc));
+  KASSERT(fd);
+  memset(fd, 0x0, sizeof(struct filedesc));
+  fd->fd_refcnt = 1;
+  fd->fd_ofile = fd_ofile;
+  fd->oflags = OFLAGS;
+  fd->fd_lock = lock_create(lk_name);
+
+  return fd;
+}
+
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
@@ -108,92 +143,25 @@ int runprogram(char* progname)
     return ENOMEM;
   }
 
+  struct filedesc* fd = NULL;
   struct proc* proc = curproc;
 
   proc->p_fdtable = p_fdtable;
 
   /* open stdout */
-
-  // TODO: make a little helper
-
-  // use a non-const string for vfs_open()
-  char fn[80];
-  struct vnode* fd_ofile = NULL;
-  int open_res;
-  struct filedesc* fd = NULL;
-
-  strcpy(fn, "con:");
-
-  open_res = vfs_open(fn, O_WRONLY, 0666, &fd_ofile);
-  KASSERT((open_res == 0) && "Error opening con: device");
-
-  /* vn_fs being NULL is used to determine if syscalls are to mess with things
-     like offsets and positioning. */
-  KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
-
-  /* Create the stdout file descriptor */
-  fd = kmalloc(sizeof(struct filedesc));
-  KASSERT(fd);
-  memset(fd, 0x0, sizeof(struct filedesc));
-  fd->fd_refcnt = 1;
-  fd->fd_ofile = fd_ofile;
-  fd->oflags = O_WRONLY;
-  fd->fd_lock = lock_create("fd_stdout");
-
+  fd = open_console_device(O_WRONLY, "stdout");
   KASSERT(proc->p_fdtable[STDOUT_FILENO] == NULL);
   proc->p_fdtable[STDOUT_FILENO] = fd;
 
   /* open stderr */
-
-  // TODO: all the spinlocks are not needed.  we're like the only ones here.
-
-  strcpy(fn, "con:");
-
-  open_res = vfs_open(fn, O_WRONLY, 0666, &fd_ofile);
-  KASSERT((open_res == 0) && "Error opening con: device");
-
-  /* vn_fs being NULL is used to determine if syscalls are to mess with things
-     like offsets and positioning. */
-  KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
-
-  /* Create the stderr file descriptor */
-  fd = kmalloc(sizeof(struct filedesc));
-  KASSERT(fd);
-  memset(fd, 0x0, sizeof(struct filedesc));
-  fd->fd_refcnt = 1;
-  fd->fd_ofile = fd_ofile;
-  fd->oflags = O_WRONLY;
-  fd->fd_lock = lock_create("fd_stderr");
-
-  spinlock_acquire(&proc->p_lock);
+  fd = open_console_device(O_WRONLY, "stderr");
   KASSERT(proc->p_fdtable[STDERR_FILENO] == NULL);
   proc->p_fdtable[STDERR_FILENO] = fd;
-  spinlock_release(&proc->p_lock);
 
   /* open stdin */
-
-  strcpy(fn, "con:");
-
-  open_res = vfs_open(fn, O_RDONLY, 0666, &fd_ofile);
-  KASSERT((open_res == 0) && "Error opening con: device");
-
-  /* vn_fs being NULL is used to determine if syscalls are to mess with things
-     like offsets and positioning. */
-  KASSERT((fd_ofile->vn_fs == NULL) && "vn_fs isn't null for con: device");
-
-  /* Create the stdin file descriptor */
-  fd = kmalloc(sizeof(struct filedesc));
-  KASSERT(fd);
-  memset(fd, 0x0, sizeof(struct filedesc));
-  fd->fd_refcnt = 1;
-  fd->fd_ofile = fd_ofile;
-  fd->oflags = O_RDONLY;
-  fd->fd_lock = lock_create("fd_stdin");
-
-  spinlock_acquire(&proc->p_lock);
+  fd = open_console_device(O_RDONLY, "stdin");
   KASSERT(proc->p_fdtable[STDIN_FILENO] == NULL);
   proc->p_fdtable[STDIN_FILENO] = fd;
-  spinlock_release(&proc->p_lock);
 
   /* Warp to user mode. */
   enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
