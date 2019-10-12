@@ -13,14 +13,21 @@ static struct sysprocs sysprocs;
 void sysprocs_init(struct proc* init_proc)
 {
   KASSERT(init_proc != NULL);
-  KASSERT(sysprocs.sp_procs == NULL);
 
-  spinlock_init(&sysprocs.sp_lock);
+  /* This happens only once per "boot" */
+  if (sysprocs.i_am_initialized == 0) {
+    spinlock_init(&sysprocs.sp_lock);
+    KASSERT(sysprocs.sp_procs[0] == NULL); /* static allocations always 0 */
+    sysprocs.i_am_initialized = 1;
+  }
 
-  sysprocs.sp_procs =
-      (struct proc**)kmalloc(sizeof(struct proc*) * NUM_PROCESSES_MAX);
-  KASSERT(sysprocs.sp_procs);
-  memset(sysprocs.sp_procs, 0x0, sizeof(struct proc*) * NUM_PROCESSES_MAX);
+  /* Scan the process ID table for any outstanding allocations.  There
+   * shouldn't be any. */
+  for (int i = 0; i < NUM_PROCESSES_MAX; i++) {
+    KASSERT((sysprocs.sp_procs[i] == NULL) && "Fix the leak!!");
+    // TODO: After getting this clean, change this to memset
+    // memset(sysprocs.sp_procs, 0x0, sizeof(struct proc*) * NUM_PROCESSES_MAX);
+  }
 
   sysprocs.next_pid = PID_MIN;
 }

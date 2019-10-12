@@ -2,14 +2,17 @@
 #define _PROCUD_MGMT_H_
 
 #include <types.h>
+
+#include <limits.h>
 #include <spinlock.h>
 
 struct proc;
 
 /* system process ID list */
 struct sysprocs {
+  int i_am_initialized;
   struct spinlock sp_lock;
-  struct proc** sp_procs;
+  struct proc* sp_procs[NUM_PROCESSES_MAX];
   pid_t next_pid;
 };
 
