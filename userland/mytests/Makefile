@@ -8,6 +8,7 @@ SUBDIRS=\
 	simpleerr \
 	dup2 \
 	getpid \
-	simplefork
+	onefork \
+	twofork
 
 .include "$(TOP)/mk/os161.subdir.mk"
