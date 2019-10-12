@@ -375,10 +375,8 @@ struct addrspace* proc_setas(struct addrspace* newas)
 
 /* Remove thread from list of children threads. */
 // TODO: to support unlinking from zombies, we will need two parameters
-void unassociate_child_pid_from_parent(pid_t pid)
+void unassociate_child_pid_from_parent(struct proc* proc, pid_t pid)
 {
-  struct proc* proc = curproc;
-
   KASSERT(proc != NULL);
 
   struct thread_list** tl_head = &proc->p_mychild_threads;

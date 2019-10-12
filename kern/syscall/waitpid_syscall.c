@@ -20,8 +20,6 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   /* track return status internally since status is permitted to be NULL */
   int rstatus = 0;
 
-  /* short-circuit check that status pointer is valid */
-
 #if 0
   /* TODO: check alignment -- Where is the requirement? */
   KASSERT(sizeof(unsigned int) >= sizeof(userptr_t));
@@ -31,6 +29,7 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   }
 #endif
 
+  /* short-circuit check that status pointer is valid */
   if (copyin(tgt_status, &rstatus, sizeof(int))) {
     res = EFAULT;
     goto SYS_WAITPID_ERROR;
@@ -50,7 +49,6 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   }
 
   /* check pid exists/is known */
-
   struct proc* tgt_proc = get_proc_from_pid(tgt_pid);
 
   if (tgt_proc == NULL) {
@@ -59,7 +57,6 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   }
 
   /* check pid is child of current process */
-
   if (!is_pid_my_child(tgt_pid)) {
     res = ECHILD;
     goto SYS_WAITPID_ERROR;
@@ -81,9 +78,6 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 #endif
 
   /* sleep until the child exits */
-
-  // TODO: restructure to use the thread_count wait channel
-
   lock_acquire(tgt_proc->p_lk_exited);
   while (!tgt_proc->p_exited) {
     cv_wait(tgt_proc->p_cv_exited, tgt_proc->p_lk_exited);
@@ -91,11 +85,10 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   lock_release(tgt_proc->p_lk_exited);
 
   /*
-   * At this point, the child is on its way to exiting.  Wait for the
-   * number of threads to be 0.
+   * At this point, the child is on its way to exiting.  Yield until the number
+   * of threads to be 0 which will be decremented by proc_remthread().
    */
 
-#if 0
   bool all_threads_exited = false;
   do {
     spinlock_acquire(&tgt_proc->p_lock);
@@ -103,33 +96,47 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
     if (tgt_proc->p_numthreads == 0) {
       all_threads_exited = true;
     } else {
-      // TODO: create a wait channel
+      /* During testing thread_yield() was never observed to have occur. */
+      thread_yield();
     }
 
     spinlock_release(&tgt_proc->p_lock);
   } while (all_threads_exited == false);
-#endif
 
   /*
-   * At this point, the child has effectively exited, but the process structure
-   * still exists.  The parent can freely manipulate the child's process
-   * structure and do whatever to clean up the terminated process then delete
-   * it.
+   * The child has effectively exited, but the process structure still exists.
+   * The parent can freely manipulate the child's process structure and do
+   * whatever to clean up the terminated process then delete it.
    */
-
   rstatus = tgt_proc->p_exit_status;
 
-  /* disassociate the child proc from the parent */
-
-  // TODO: struct proc* proc = curproc;
-
-  unassociate_child_pid_from_parent(tgt_pid);
+  /* Remove the (now mostly dead) child pid from the parent */
+  struct proc* proc = curproc;
+  unassociate_child_pid_from_parent(proc, tgt_pid);
 
   /*
    * If the zombie child forked its own children, reparent these threads to
-   * themselves (i.e. set ppid := pid).
+   * themselves (i.e. set ppid := pid).  OS161 has no init process, so there
+   * is little alternative.
    */
-  KASSERT(tgt_proc->p_mychild_threads == NULL);  // TODO
+  KASSERT((tgt_proc->p_mychild_threads == NULL) && "This needs testing.");
+
+  pid_t orphaned_pid;
+  struct thread_list* orphaned_thread_list = tgt_proc->p_mychild_threads;
+  while (orphaned_thread_list != NULL) {
+    KASSERT(orphaned_thread_list != NULL);
+    orphaned_pid = orphaned_thread_list->tl_pid;
+    struct proc* orphaned_proc = get_proc_from_pid(orphaned_pid);
+
+    KASSERT(orphaned_proc->p_ppid == tgt_pid);
+    KASSERT(orphaned_proc->p_parent_proc == tgt_proc);
+
+    /* Self parent the orphan */
+    orphaned_proc->p_ppid = orphaned_proc->p_pid;
+    orphaned_proc->p_parent_proc = NULL; /* NULL probably better than self */
+
+    unassociate_child_pid_from_parent(tgt_proc, orphaned_pid);
+  }
 
   // TODO: set return parm status if not null
   // TODO: deallocate all the stuff in the child process struct

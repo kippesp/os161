@@ -192,7 +192,7 @@ SYS_FORK_ERROR_FREE:
 SYS_FORK_ERROR_I:
   sem_destroy(cinitd->waitforchildstart);
 SYS_FORK_ERROR_H:
-  unassociate_child_pid_from_parent(cinitd->c_proc->p_pid);
+  unassociate_child_pid_from_parent(proc, cinitd->c_proc->p_pid);
 SYS_FORK_ERROR_G:
   unassign_pid(cinitd->c_proc->p_pid);
 SYS_FORK_ERROR_F:
