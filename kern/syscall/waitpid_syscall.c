@@ -13,26 +13,25 @@
 
 int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 {
-  (void)rvalue;
-
   int res = 0;
 
   /* track return status internally since status is permitted to be NULL */
   int rstatus = 0;
 
-#if 0
-  /* TODO: check alignment -- Where is the requirement? */
+  /* check status pointer is int aligned (see badcall/bad_waitpid.c) */
   KASSERT(sizeof(unsigned int) >= sizeof(userptr_t));
   unsigned int align_mask = ~(unsigned int)sizeof(int);
   if ((unsigned int)tgt_status != ((unsigned int)tgt_status & align_mask)) {
-    kprintf("*** PAUL: status address is not aligned\n");
-  }
-#endif
-
-  /* short-circuit check that status pointer is valid */
-  if (copyin(tgt_status, &rstatus, sizeof(int))) {
     res = EFAULT;
     goto SYS_WAITPID_ERROR;
+  }
+
+  /* short-circuit check that status pointer is valid or NULL */
+  if (tgt_status != NULL) {
+    if (copyin(tgt_status, &rstatus, sizeof(int))) {
+      res = EFAULT;
+      goto SYS_WAITPID_ERROR;
+    }
   }
 
   /* check for invalid options */
@@ -138,14 +137,6 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
     unassociate_child_pid_from_parent(tgt_proc, orphaned_pid);
   }
 
-  // TODO: set return parm status if not null
-  // TODO: deallocate all the stuff in the child process struct
-  // TODO: what to do if the child forked its own children?
-  // TODO:    should I become the parent of these threads?
-
-  // TODO: perhaps create a test x86 app for my os161 locks; then test out
-  //       some of these issues with fork of forked children.
-
   // See userland/testbin/badcall/bad_waitpid.c
   // wait_badpid
 
@@ -165,10 +156,15 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   any more!
   */
 
-  if (copyout(&rstatus, tgt_status, sizeof(int))) {
-    res = EFAULT;
-    goto SYS_WAITPID_ERROR;
+  if (tgt_status != NULL) {
+    if (copyout(&rstatus, tgt_status, sizeof(int))) {
+      res = EFAULT;
+      goto SYS_WAITPID_ERROR;
+    }
   }
+
+  KASSERT(rvalue != NULL);
+  *rvalue = tgt_pid;
 
   goto SYS_WAITPID_ERROR_FREE;
 
