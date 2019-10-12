@@ -152,10 +152,10 @@ struct addrspace* proc_getas(void);
 struct addrspace* proc_setas(struct addrspace*);
 
 /* Remove thread from list of children threads. */
-void proc_unlink_thread(pid_t pid);
+void unassociate_child_pid_from_parent(pid_t pid);
 
 /* Add thread to list of children threads. */
-int proc_link_thread(pid_t pid);
+int associate_child_pid_in_parent(pid_t pid);
 
 #endif /* _PROC_H_ */
 

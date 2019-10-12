@@ -74,8 +74,6 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
 {
   int res = 0;
 
-  // TODO: lock on the syscall lock???
-
   /*
    * Data for the forked child's entrypoint function is passed via a single
    * structure.
@@ -125,7 +123,7 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
   }
 
   /*
-   * Duplicate the caller's open files table and bump the refcount in the
+   * Duplicate the caller's open files table and bump the refcounts of the
    * descriptors.
    */
   cinitd->c_proc->p_fdtable = dup_fdtable(proc->p_fdtable);
@@ -144,22 +142,21 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
   cinitd->c_proc->p_parent_proc = proc;
   cinitd->c_proc->p_ppid = proc->p_pid;
 
-  /* A pid==0 here indicates there are no more pids in the sysprocs table */
+  /*
+   * A p_pid==0 from allocate_pid() indicates there are no more pids in the
+   * sysprocs table.
+   */
   if (cinitd->c_proc->p_pid == 0) {
     res = ENPROC;
     goto SYS_FORK_ERROR_F;
   }
 
   /* Record the new pid in the parent to support waitpid. */
-  res = proc_link_thread(cinitd->c_proc->p_pid);
+  res = associate_child_pid_in_parent(cinitd->c_proc->p_pid);
 
   if (res) {
     goto SYS_FORK_ERROR_G;
   }
-
-  /*
-   * Call the entrypoint for the forked child
-   */
 
   cinitd->waitforchildstart = sem_create("waitchildstart", 0);
 
@@ -168,10 +165,7 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
     goto SYS_FORK_ERROR_H;
   }
 
-  /*
-   * Call the entrypoint for the forked child
-   */
-
+  /* Call the entrypoint for the forked child */
   pid_t cpid = cinitd->c_proc->p_pid;
   res = thread_fork(proc->p_name, cinitd->c_proc, enter_forked_process,
                     (void*)cinitd, 0);
@@ -180,24 +174,16 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
     goto SYS_FORK_ERROR_I;
   }
 
-  // TODO: Race Condition!  When can I free this?  A lock in the struct?
-  // kfree(cinitd);
-
-  /* wait for child to be ready before deallocating the trapframe */
-  // TODO: change to lock
-  // kprintf("Waiting for child to start....\n");
+  /* Wait for child thread to be finished with the trapframe data */
   P(cinitd->waitforchildstart);
-  // kprintf("....\n");
-  // kprintf("Waiting for child to start....DONE\n");
-  // sem_destroy(cinitd->waitforchildstart);
 
-  // KASSERT(res && "Didn't work");
+  sem_destroy(cinitd->waitforchildstart);
+  kfree(cinitd->c_tf);
+  kfree(cinitd);
 
   *child_pid = cpid;
 
   goto SYS_FORK_ERROR_FREE;
-
-  // TODO: Once working, clean up this function
 
 SYS_FORK_ERROR_FREE:
   KASSERT(res == 0);
@@ -206,7 +192,7 @@ SYS_FORK_ERROR_FREE:
 SYS_FORK_ERROR_I:
   sem_destroy(cinitd->waitforchildstart);
 SYS_FORK_ERROR_H:
-  proc_unlink_thread(cinitd->c_proc->p_pid);
+  unassociate_child_pid_from_parent(cinitd->c_proc->p_pid);
 SYS_FORK_ERROR_G:
   unassign_pid(cinitd->c_proc->p_pid);
 SYS_FORK_ERROR_F:

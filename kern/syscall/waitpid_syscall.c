@@ -127,7 +127,7 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 
   // TODO: struct proc* proc = curproc;
 
-  proc_unlink_thread(tgt_pid);
+  unassociate_child_pid_from_parent(tgt_pid);
 
   /*
    * If the zombie child forked its own children, reparent these threads to
