@@ -137,24 +137,8 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
     unassociate_child_pid_from_parent(tgt_proc, orphaned_pid);
   }
 
-  // See userland/testbin/badcall/bad_waitpid.c
-  // wait_badpid
-
+  // TODO: Flush out this next call
   proc_destroy(tgt_proc);
-  /*
-  So basically, we need to check:
-
-    Is the status pointer properly aligned (by 4) ?
-    Is the status pointer a valid pointer anyway (NULL, point to kernel, ...)?
-    Is options valid? (More flags than WNOHANG | WUNTRACED )
-    Does the waited pid exist/valid?
-    If exist, are we allowed to wait it ? (Is it our child?)
-
-  And also, after successfully get the exitcode, don't forget to destroy the
-  child's process structure and free its slot in the procs array. Since one
-  child has only one parent, and after we wait for it, no one will care for it
-  any more!
-  */
 
   if (tgt_status != NULL) {
     if (copyout(&rstatus, tgt_status, sizeof(int))) {

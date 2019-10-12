@@ -79,7 +79,7 @@ struct proc* get_proc_from_pid(pid_t pid)
   spinlock_acquire(&sysprocs.sp_lock);
 
   /* scan sysprocs table for the pid */
-  for (int i = 0; i <= NUM_PROCESSES_MAX; i++) {
+  for (int i = 0; i < NUM_PROCESSES_MAX; i++) {
     if (sysprocs.sp_procs[i] == NULL)
       continue;
 
