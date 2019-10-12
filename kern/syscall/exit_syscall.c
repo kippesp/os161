@@ -18,6 +18,8 @@ void sys__exit(int exitcode)
   proc->p_exit_status = prepped_code;
   spinlock_release(&proc->p_lock);
 
+  /* wake any process sleeping on thread exiting */
+
   lock_acquire(proc->p_lk_exited);
   proc->p_exited = true;
   cv_signal(proc->p_cv_exited, proc->p_lk_exited);

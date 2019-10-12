@@ -15,8 +15,6 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 {
   (void)rvalue;
 
-  // TODO: lock on the syscall lock???
-
   int res = 0;
 
   /* track return status internally since status is permitted to be NULL */
@@ -24,12 +22,14 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 
   /* short-circuit check that status pointer is valid */
 
-  /* TODO: check alignment */
+#if 0
+  /* TODO: check alignment -- Where is the requirement? */
   KASSERT(sizeof(unsigned int) >= sizeof(userptr_t));
   unsigned int align_mask = ~(unsigned int)sizeof(int);
   if ((unsigned int)tgt_status != ((unsigned int)tgt_status & align_mask)) {
     kprintf("*** PAUL: status address is not aligned\n");
   }
+#endif
 
   if (copyin(tgt_status, &rstatus, sizeof(int))) {
     res = EFAULT;
@@ -80,18 +80,14 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   }
 #endif
 
-  // TODO: Set p_has_waiting_parent (use spinlock)
-
   /* sleep until the child exits */
 
+  // TODO: restructure to use the thread_count wait channel
+
   lock_acquire(tgt_proc->p_lk_exited);
-
-  // TODO: delete tgt_proc->p_has_waiting_parent = true;
-
   while (!tgt_proc->p_exited) {
     cv_wait(tgt_proc->p_cv_exited, tgt_proc->p_lk_exited);
   }
-
   lock_release(tgt_proc->p_lk_exited);
 
   /*

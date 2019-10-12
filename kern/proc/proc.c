@@ -113,7 +113,6 @@ struct proc* proc_create(const char* name)
   }
 
   proc->p_exited = false;
-  // proc->p_has_waiting_parent = false;
   proc->p_exit_status = 0;
 
   return proc;

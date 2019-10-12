@@ -107,7 +107,6 @@ struct proc {
 
 	struct lock* p_lk_exited;	/* lock for waiting and exited bools */
 	struct cv* p_cv_exited;		/* condition variable for a p_exited */
-	//bool p_has_waiting_parent;	/* parent is waiting for me with waitpid */
 	// TODO: implicit to have waiting parent....delete this
 	bool p_exited;
 
