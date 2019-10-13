@@ -25,13 +25,6 @@ void sys__exit(int exitcode)
   cv_signal(proc->p_cv_exited, proc->p_lk_exited);
   lock_release(proc->p_lk_exited);
 
-  // The thread's work is done.  Release the lock and kill itself.
-
-  // TODO: check if parent still exists
-  // TODO: if not, get me a new parent
-
-  // TODO: if I am my own parent, I can destroy myself.
-
   // Call does not return
   thread_exit();
 }
