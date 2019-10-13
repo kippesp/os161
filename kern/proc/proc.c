@@ -216,14 +216,18 @@ void proc_destroy(struct proc* proc)
   }
 
   /* File handles table */
+  undup_fdtable(proc->p_fdtable);
+  KASSERT(proc->p_fdtable);
+  kfree(proc->p_fdtable);
+  proc->p_fdtable = NULL;
 
-  // TODO: scan table for open file
-  // TODO: close files
-  // TODO: clean up locks
+  KASSERT(proc->p_mychild_threads == NULL);
+  KASSERT(proc->p_parent_proc == NULL);
 
-  if (proc->p_fdtable) {
-    kfree(proc->p_fdtable);
-  }
+  lock_destroy(proc->p_lk_exited);
+  cv_destroy(proc->p_cv_exited);
+
+  KASSERT(proc->p_exited == true);
 
   KASSERT(proc->p_numthreads == 0);
   spinlock_cleanup(&proc->p_lock);

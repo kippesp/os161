@@ -13,6 +13,7 @@
 
 int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 {
+  // TODO: Add p_lk_syscall ??
   int res = 0;
 
   /* track return status internally since status is permitted to be NULL */
@@ -95,7 +96,7 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
     if (tgt_proc->p_numthreads == 0) {
       all_threads_exited = true;
     } else {
-      /* During testing thread_yield() was never observed to have occur. */
+      /* During testing thread_yield() was never observed to have occurred. */
       thread_yield();
     }
 
@@ -137,7 +138,10 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
     unassociate_child_pid_from_parent(tgt_proc, orphaned_pid);
   }
 
-  // TODO: Flush out this next call
+  /* Orphan this thread */
+  tgt_proc->p_ppid = tgt_proc->p_pid;
+  tgt_proc->p_parent_proc = NULL;
+
   proc_destroy(tgt_proc);
 
   if (tgt_status != NULL) {

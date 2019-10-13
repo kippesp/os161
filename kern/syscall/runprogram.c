@@ -170,6 +170,8 @@ int runprogram(char* progname)
   pid_t pid = allocate_pid(proc);
   proc->p_pid = pid;
 
+  // TODO: set cwd to "/"
+
   /* Warp to user mode. */
   enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
                     NULL /*userspace addr of environment*/, stackptr,

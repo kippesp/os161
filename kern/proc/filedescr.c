@@ -7,6 +7,7 @@
 #include <proc.h>
 #include <spinlock.h>
 #include <synch.h>
+#include <vfs.h>
 
 /* Return 0 if the file handle is valid for the process or EBADF if outside the
  * range or is not assigned.
@@ -64,11 +65,30 @@ struct filedesc** dup_fdtable(struct filedesc** src)
   return fdtable;
 }
 
+/* Called by waitpid to cleanup from exited child process.  Any descriptors
+ * with no remaining references are closed before deallocation. */
 void undup_fdtable(struct filedesc** fdtable)
 {
-  (void)fdtable;
-  // TODO
-  kprintf("Needs work\n");
+  KASSERT(fdtable);
+
+  for (int i = 0; i < __OPEN_MAX; i++) {
+    if (fdtable[i]) {
+      lock_acquire(fdtable[i]->fd_lock);
+      KASSERT(fdtable[i]->fd_refcnt >= 1);
+      fdtable[i]->fd_refcnt--;
+
+      /* close the unreferenced file */
+      if (fdtable[i]->fd_refcnt == 0) {
+        vfs_close(fdtable[i]->fd_ofile);
+        destroy_fd(fdtable[i]);
+      }
+      else {
+        lock_release(fdtable[i]->fd_lock);
+      }
+
+      fdtable[i] = NULL;
+    }
+  }
 }
 
 /* Return the file descriptor, fd, given a process's file handle, fh */
@@ -97,7 +117,7 @@ struct filedesc* new_fd(void)
   return fd;
 }
 
-/* I'm called at the close */
+/* Clean up unused file descriptor at file close or process deallocation. */
 void destroy_fd(struct filedesc* fd)
 {
   KASSERT(lock_do_i_hold(fd->fd_lock));

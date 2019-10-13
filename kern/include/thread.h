@@ -117,8 +117,6 @@ struct thread {
 	 */
 
 	/* add more here as needed */
-
-	struct proc* t_myproc;
 };
 
 /*
