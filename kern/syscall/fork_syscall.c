@@ -138,12 +138,12 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
    * both the parent's ID and proc address in the rare chance the pids roll;
    * used as a double check to see if parent has died.
    */
-  cinitd->c_proc->p_pid = allocate_pid(cinitd->c_proc);
+  cinitd->c_proc->p_pid = assign_pid(cinitd->c_proc);
   cinitd->c_proc->p_parent_proc = proc;
   cinitd->c_proc->p_ppid = proc->p_pid;
 
   /*
-   * A p_pid==0 from allocate_pid() indicates there are no more pids in the
+   * A p_pid==0 from assign_pid() indicates there are no more pids in the
    * sysprocs table.
    */
   if (cinitd->c_proc->p_pid == 0) {

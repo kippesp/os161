@@ -52,6 +52,8 @@
 
 #include <kern/errno.h>
 
+#include <procid_mgmt.h>
+
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -232,6 +234,8 @@ void proc_destroy(struct proc* proc)
   KASSERT(proc->p_numthreads == 0);
   spinlock_cleanup(&proc->p_lock);
 
+  unassign_pid(proc->p_pid);
+
   kfree(proc->p_name);
   kfree(proc);
 }
@@ -329,9 +333,26 @@ void proc_remthread(struct thread* t)
   spinlock_acquire(&proc->p_lock);
   KASSERT(proc->p_numthreads > 0);
   proc->p_numthreads--;
+
+  /* The first process has pid PID_MIN. */
+  if (proc->p_pid == PID_MIN) {
+    KASSERT(proc->p_numthreads == 0);
+  }
+
   spinlock_release(&proc->p_lock);
 
   spl = splhigh();
+
+  /*
+   * By definition, the first process's pid is PID_MIN.  If this is the current
+   * process's pid, then there is some additional cleanup to do.  Since there
+   * is no other process to do this (a.k.a a parent) it should be okay.
+   */
+
+  if (proc->p_pid == PID_MIN) {
+    proc_destroy(proc);
+  }
+
   t->t_proc = NULL;
   splx(spl);
 }

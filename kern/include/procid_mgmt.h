@@ -20,7 +20,7 @@ struct sysprocs {
 void sysprocs_init(struct proc*);
 
 /* Allocate a new entry in the sysprocs table; return its pid */
-pid_t allocate_pid(struct proc*);
+pid_t assign_pid(struct proc*);
 
 /* Deallocate pid's entry in the sysprocs table */
 void unassign_pid(pid_t pid);

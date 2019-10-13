@@ -166,8 +166,7 @@ int runprogram(char* progname)
 
   /* initalize the system process identifier table */
   sysprocs_init(proc);
-
-  pid_t pid = allocate_pid(proc);
+  pid_t pid = assign_pid(proc);
   proc->p_pid = pid;
 
   // TODO: set cwd to "/"

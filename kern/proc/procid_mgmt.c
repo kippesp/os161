@@ -36,7 +36,7 @@ void sysprocs_init(struct proc* init_proc)
  * Linearly scan the sysprocs table for a free entry.  For this project,
  * an O(n) method is fine.  Assign the provided proc to this pid entry.
  */
-pid_t allocate_pid(struct proc* proc)
+pid_t assign_pid(struct proc* proc)
 {
   pid_t new_pid = 0;
 
@@ -60,16 +60,31 @@ pid_t allocate_pid(struct proc* proc)
 pid_t sys_getpid(void)
 {
   struct proc* proc = curproc;
-
   return proc->p_pid;
 }
 
 void unassign_pid(pid_t pid)
 {
-  KASSERT(sysprocs.sp_procs[pid] != NULL);
-  sysprocs.sp_procs[pid] = NULL;
+  int pididx = -1;
 
-  KASSERT(0 && "Not implemented: unassign_pid");
+  spinlock_acquire(&sysprocs.sp_lock);
+  for (int i = 0; i <= NUM_PROCESSES_MAX; i++) {
+    if (sysprocs.sp_procs[i] == NULL) {
+      continue;
+    }
+    else if (sysprocs.sp_procs[i]->p_pid == pid) {
+      pididx = i;
+      break;
+    }
+  }
+
+  /* The pid must be found */
+  KASSERT(pididx >= 0);
+
+  KASSERT(sysprocs.sp_procs[pididx]->p_pid == pid);
+  sysprocs.sp_procs[pididx]->p_pid = 0;
+  sysprocs.sp_procs[pididx] = 0;
+  spinlock_release(&sysprocs.sp_lock);
 }
 
 struct proc* get_proc_from_pid(pid_t pid)
