@@ -5,6 +5,7 @@ SUBDIRS=\
 	simplewrite \
 	simpleopen \
 	lseekargs \
-	simpleerr
+	simpleerr \
+	dup2
 
 .include "$(TOP)/mk/os161.subdir.mk"

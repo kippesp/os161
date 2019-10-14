@@ -173,6 +173,10 @@ void syscall(struct trapframe* tf)
       }
     } break;
 
+    case SYS_dup2:
+      err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1);
+      break;
+
     case SYS_chdir:
       err = sys_chdir((const_userptr_t)tf->tf_a0);
       break;

@@ -36,7 +36,6 @@ int sys_close(int fh)
   if (fd->fd_refcnt == 0) {
     p->p_fdtable[fh] = NULL;
     vfs_close(fd->fd_ofile);
-
     destroy_fd(fd);
   }
   else {
