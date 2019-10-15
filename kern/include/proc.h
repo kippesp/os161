@@ -94,10 +94,11 @@ struct proc {
 	/* linked list of forked children to support waidpid */
 	struct thread_list* p_mychild_threads;
 
-	//struct thread* p_mythread;
-	// TODO: where are the threads kept?
+	/*
+	 * Keep the pid information here since OS161 has a 1:1 proc:thread
+	 * implementation.
+	 */
 	pid_t p_ppid;			/* parent's pid */
-	/* TODO: store the parent's proc address just in case there is duplicate */
 	pid_t p_pid;			/* my pid */
 	struct proc* p_parent_proc;	/* protection that this is our parent */
 
