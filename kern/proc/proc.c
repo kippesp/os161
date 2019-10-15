@@ -100,8 +100,6 @@ struct proc* proc_create(const char* name)
   proc->p_pid = 0;
   proc->p_parent_proc = NULL;
 
-  // spinlock_init(&proc->p_exited_lock);
-
   proc->p_lk_exited = lock_create("p_lk_exited");
   if (proc->p_lk_exited == NULL) {
     kfree(proc);
@@ -122,18 +120,30 @@ struct proc* proc_create(const char* name)
 
 /*
  * Destroy the newly created proc structure.  Call this function only
- * immediately after proc_create.
+ * immediately after proc_create because of an error.
  */
 void proc_uncreate(struct proc* proc)
 {
   KASSERT(proc);
 
+  KASSERT(proc->p_exit_status == 0);
+  KASSERT(proc->p_exited == false);
+
+  cv_destroy(proc->p_cv_exited);
+  lock_destroy(proc->p_lk_exited);
+
+  KASSERT(proc->p_parent_proc == NULL);
+  KASSERT(proc->p_pid == 0);
+  KASSERT(proc->p_ppid == 0);
+  KASSERT(proc->p_mychild_threads == NULL);
+
+  lock_destroy(proc->p_lk_syscall);
+
+  KASSERT(proc->p_fdtable == NULL);
+  KASSERT(proc->p_cwd == NULL);
+  KASSERT(proc->p_addrspace == NULL);
+
   spinlock_cleanup(&proc->p_lock);
-
-  KASSERT(proc->p_addrspace);
-  KASSERT(proc->p_cwd);
-  KASSERT(proc->p_fdtable);
-
   kfree(proc->p_name);
   kfree(proc);
 }
@@ -399,7 +409,6 @@ struct addrspace* proc_setas(struct addrspace* newas)
 }
 
 /* Remove thread from list of children threads. */
-// TODO: to support unlinking from zombies, we will need two parameters
 void unassociate_child_pid_from_parent(struct proc* proc, pid_t pid)
 {
   KASSERT(proc != NULL);

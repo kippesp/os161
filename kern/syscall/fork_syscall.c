@@ -195,10 +195,15 @@ SYS_FORK_ERROR_H:
   unassociate_child_pid_from_parent(proc, cinitd->c_proc->p_pid);
 SYS_FORK_ERROR_G:
   unassign_pid(cinitd->c_proc->p_pid);
+  cinitd->c_proc->p_pid = 0;
+  cinitd->c_proc->p_parent_proc = NULL;
+  cinitd->c_proc->p_ppid = 0;
 SYS_FORK_ERROR_F:
   undup_fdtable(cinitd->c_proc->p_fdtable);
+  cinitd->c_proc->p_fdtable = NULL;
 SYS_FORK_ERROR_E:
   as_destroy(cinitd->c_proc->p_addrspace);
+  cinitd->c_proc->p_addrspace = NULL;
 SYS_FORK_ERROR_D:
   proc_uncreate(cinitd->c_proc);
 SYS_FORK_ERROR_C:
