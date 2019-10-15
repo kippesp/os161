@@ -92,7 +92,7 @@ static struct filedesc* open_console_device(int OFLAGS, const char* name)
  *
  * Calls vfs_open on progname and thus may destroy it.
  */
-int runprogram(char* progname)
+int runprogram(char* progname, int argc, char** args)
 {
   struct addrspace* as;
   struct vnode* v;
@@ -171,10 +171,103 @@ int runprogram(char* progname)
 
   // TODO: set cwd to "/"
 
+  /*
+   * Construct argv array structure for the new userspace stack.  The
+   * userspace stack pointer is defined to be correctly aligned and starts as
+   * USERSTACK, growing towards 0.  The data is layed out by the helper function
+   * into the correct locations of the userspace pointer.
+   *
+   * All data is aligned on int boundaries.
+   *
+   * TOP-OF-USER-STACK / USERSTACK / 0x80000000
+   * char*     argv[0]          typically the program name being executed
+   * char*     argv[1]          string of the first argument (or NULL if none)
+   * char*     argv[2..argc-1]
+   * userptr_t argv[argc]       always NULL
+   * userptr_t argv[2..argc-1]
+   * userptr_t argv[1]          absolute pointer to &argv[1]
+   * userptr_t argv[0]          absolute pointer to &argv[0]
+   * BASE-OF-USER-STACK <-- stackptr when above is set up
+   *
+   * Each string argv[0]..argv[argc-1] is stored packed and is aligned on int
+   * boundaries.  The alignment is enforced by postpended the strings with
+   * '\0' as necessary.
+   *
+   * First the amount of data the argv array structure consumes is determined.
+   * The entire area is initialized.  Then it is populated.
+   *
+   * If the structure is larger than __ARG_MAX bytes, then this is an error.
+   */
+
+  // TODO: Move this to the helper function
+  userptr_t argv;
+
+  {
+    size_t bytes_for_argv_strings = 0;
+
+    /* calculate bytes to store args */
+    for (int i = 0; i < argc; i++) {
+      /*
+       * All args[n] will be copied while padding out the string with '\0' to
+       * maintain the int alignment.  We could calculate the address here,
+       * but we won't.
+       */
+      size_t align_mask = -sizeof(int);
+      size_t argvlen = strlen(args[i]) + 1;
+      size_t argvlen_aligned = (argvlen + sizeof(int) - 1) & align_mask;
+
+      bytes_for_argv_strings += argvlen_aligned;
+    }
+
+    /* check size won't go over the limit */
+    size_t total_argv_size = bytes_for_argv_strings + (argc + 1) * sizeof(int);
+    KASSERT(total_argv_size <= __ARG_MAX);
+
+    /*
+     * Use argvptr to set the addresses of the argv strings--brilliant!
+     * Skip over bytes_for_argv_strings and set the NULL terminator pointer
+     * of the argv list.
+     */
+    vaddr_t argvptr = stackptr - bytes_for_argv_strings - sizeof(int);
+    *(vaddr_t*)argvptr = 0x0; /* this is NULL terminator at argv[argc] */
+
+    /* initialize the area where the strings will be stored */
+    memset((char*)(argvptr + sizeof(int)), 0x0, bytes_for_argv_strings);
+
+    /*
+     * Initial conditions: argsptr (the string storage addresses) will start at
+     * its first location (just above argv[argc]--the NULL terminator). argvptr
+     * (the pointer to the strings) will start at the NULL terminator. From
+     * there, the two pointers will move in opposite directions--argsptr up and
+     * argvptr down.
+     */
+
+    vaddr_t argsptr = argvptr + sizeof(int);
+
+    for (int i = argc - 1; i >= 0; i--) {
+      size_t align_mask = -sizeof(int);
+      size_t argvlen = strlen(args[i]) + 1;
+      size_t argvlen_aligned = (argvlen + sizeof(int) - 1) & align_mask;
+
+      /* move argvptr down */
+      argvptr = argvptr - sizeof(int);
+
+      /* copy the string to address argsptr and store its the addr at argvptr */
+      strcpy((char*)argsptr, args[i]);
+      *(vaddr_t*)argvptr = argsptr;
+
+      argsptr = argsptr + argvlen_aligned;
+    }
+
+    argv = (userptr_t)argvptr;
+
+    /* Update the new stack pointer location */
+    stackptr = (vaddr_t)argv;
+  }
+
   /* Warp to user mode. */
-  enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
-                    NULL /*userspace addr of environment*/, stackptr,
-                    entrypoint);
+  enter_new_process(argc, argv, NULL /*userspace addr of environment*/,
+                    stackptr, entrypoint);
 
   /* enter_new_process does not return. */
   panic("enter_new_process returned\n");

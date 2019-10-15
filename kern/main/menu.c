@@ -65,10 +65,6 @@
  * Function for a thread that runs an arbitrary userlevel program by
  * name.
  *
- * Note: this cannot pass arguments to the program. You may wish to
- * change it so it can, because that will make testing much easier
- * in the future.
- *
  * It copies the program name because runprogram destroys the copy
  * it gets by passing it to vfs_open().
  */
@@ -80,16 +76,12 @@ static void cmd_progthread(void* ptr, unsigned long nargs)
 
   KASSERT(nargs >= 1);
 
-  if (nargs > 2) {
-    kprintf("Warning: argument passing from menu not supported\n");
-  }
-
   /* Hope we fit. */
   KASSERT(strlen(args[0]) < sizeof(progname));
 
   strcpy(progname, args[0]);
 
-  result = runprogram(progname);
+  result = runprogram(progname, nargs, args);
   if (result) {
     kprintf("Running program %s failed: %s\n", args[0], strerror(result));
     return;
