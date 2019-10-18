@@ -10,6 +10,7 @@ SUBDIRS=\
 	getpid \
 	onefork \
 	twofork \
-	args
+	args \
+	execv
 
 .include "$(TOP)/mk/os161.subdir.mk"

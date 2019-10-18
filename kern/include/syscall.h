@@ -56,4 +56,30 @@ __DEAD void enter_new_process(int argc, userptr_t argv, userptr_t env,
 int sys_reboot(int code);
 int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
+/* ASST2.1 additions */
+
+// TODO Move the other protos here
+#if 0
+file      syscall/open_syscall.c
+file      syscall/read_syscall.c
+file      syscall/write_syscall.c
+file      syscall/close_syscall.c
+file      syscall/lseek_syscall.c
+file      syscall/chdir_syscall.c
+file      syscall/getcwd_syscall.c
+file      syscall/remove_syscall.c
+
+file      syscall/dup2_syscall.c
+file      syscall/fork_syscall.c
+file      syscall/waitpid_syscall.c
+file      syscall/exit_syscall.c
+file      syscall/execv_syscall.c
+#endif
+
+/* ASST2.2a additions */
+
+/* ASST2.2b additions */
+
+int sys_execv(userptr_t program, userptr_t args);
+
 #endif /* _SYSCALL_H_ */
