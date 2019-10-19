@@ -2,6 +2,7 @@
 
 #include <types.h>
 
+#include <align.h>
 #include <copyinout.h>
 #include <lib.h>
 #include <limits.h>
@@ -35,11 +36,7 @@ int sys_execv(userptr_t program, userptr_t args)
     do {
       /* reached '\0' at end of string? */
       if ((*(char**)uargs_ptr)[len] == '\0') {
-        size_t align_mask = -sizeof(int);
-        size_t uargslen = len + 1;
-        size_t uargslen_aligned = (uargslen + sizeof(int) - 1) & align_mask;
-
-        bytes_for_aligned_argv_strings += uargslen_aligned;
+        bytes_for_aligned_argv_strings += ALIGNED_SIZE_T(sizeof(int), len + 1);
 
         break;
       }
@@ -85,10 +82,10 @@ int sys_execv(userptr_t program, userptr_t args)
       goto SYS_EXEC_ERROR;
     }
 
-    // TODO: make into a helper macro
-    size_t align_mask_ = -sizeof(int);
-    size_t argvlen_ = argspace;
-    size_t argvlen_aligned_ = (argvlen_ + sizeof(int) - 1) & align_mask_;
+    size_t argvlen_aligned_ = ALIGNED_SIZE_T(sizeof(int), argspace);
+
+    kprintf("'%s' is %d characters\n", (char*)p, argspace - 1);
+    kprintf("'%s' needs %d arg bytes\n", (char*)p, argvlen_aligned_);
 
     argv_string_buf_space_remaining -= argvlen_aligned_;
 

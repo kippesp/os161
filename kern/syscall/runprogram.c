@@ -45,6 +45,7 @@
 #include <syscall.h>
 #include <test.h>
 
+#include <align.h>
 #include <filedescr.h>
 #include <kern/unistd.h>
 #include <synch.h>
@@ -181,7 +182,7 @@ int runprogram(char* progname, int argc, char** args)
    *
    * TOP-OF-USER-STACK / USERSTACK / 0x80000000
    * char*     argv[0]          typically the program name being executed
-   * char*     argv[1]          string of the first argument (or NULL if none)
+   * char*     argv[1]          string of the first argument
    * char*     argv[2..argc-1]
    * userptr_t argv[argc]       always NULL
    * userptr_t argv[2..argc-1]
@@ -199,7 +200,6 @@ int runprogram(char* progname, int argc, char** args)
    * If the structure is larger than __ARG_MAX bytes, then this is an error.
    */
 
-  // TODO: Move this to the helper function
   userptr_t argv;
 
   {
@@ -212,15 +212,12 @@ int runprogram(char* progname, int argc, char** args)
        * maintain the int alignment.  We could calculate the address here,
        * but we won't.
        */
-      size_t align_mask = -sizeof(int);
-      size_t argvlen = strlen(args[i]) + 1;
-      size_t argvlen_aligned = (argvlen + sizeof(int) - 1) & align_mask;
-
-      bytes_for_argv_strings += argvlen_aligned;
+      bytes_for_argv_strings +=
+          ALIGNED_SIZE_T(sizeof(char*), strlen(args[i]) + 1);
     }
 
     /* check size won't go over the limit */
-    size_t total_argv_size = bytes_for_argv_strings + (argc + 1) * sizeof(int);
+    size_t total_argv_size = bytes_for_argv_strings + (argc + 1) * sizeof(char*);
     KASSERT(total_argv_size <= __ARG_MAX);
 
     /*
@@ -228,11 +225,11 @@ int runprogram(char* progname, int argc, char** args)
      * Skip over bytes_for_argv_strings and set the NULL terminator pointer
      * of the argv list.
      */
-    vaddr_t argvptr = stackptr - bytes_for_argv_strings - sizeof(int);
+    vaddr_t argvptr = stackptr - bytes_for_argv_strings - sizeof(char*);
     *(vaddr_t*)argvptr = 0x0; /* this is NULL terminator at argv[argc] */
 
     /* initialize the area where the strings will be stored */
-    memset((char*)(argvptr + sizeof(int)), 0x0, bytes_for_argv_strings);
+    memset((char*)(argvptr + sizeof(char*)), 0x0, bytes_for_argv_strings);
 
     /*
      * Initial conditions: argsptr (the string storage addresses) will start at
@@ -242,21 +239,17 @@ int runprogram(char* progname, int argc, char** args)
      * argvptr down.
      */
 
-    vaddr_t argsptr = argvptr + sizeof(int);
+    vaddr_t argsptr = argvptr + sizeof(char*);
 
     for (int i = argc - 1; i >= 0; i--) {
-      size_t align_mask = -sizeof(int);
-      size_t argvlen = strlen(args[i]) + 1;
-      size_t argvlen_aligned = (argvlen + sizeof(int) - 1) & align_mask;
-
       /* move argvptr down */
-      argvptr = argvptr - sizeof(int);
+      argvptr = argvptr - sizeof(char*);
 
       /* copy the string to address argsptr and store its the addr at argvptr */
       strcpy((char*)argsptr, args[i]);
       *(vaddr_t*)argvptr = argsptr;
 
-      argsptr = argsptr + argvlen_aligned;
+      argsptr = argsptr + ALIGNED_SIZE_T(sizeof(char*), strlen(args[i]) + 1);
     }
 
     argv = (userptr_t)argvptr;
