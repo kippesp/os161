@@ -7,7 +7,7 @@
 int main(int argc, char* const argv[])
 {
   printf("Calling argv with %d args....\n", argc);
-  int res = execv("/testbin/args", &argv[0]);
+  int res = execv("/mytests/args", &argv[0]);
 
   printf("%d returned by execv() call to args.\n", res);
 
