@@ -170,7 +170,12 @@ int runprogram(char* progname, int argc, char** args)
   pid_t pid = assign_pid(proc);
   proc->p_pid = pid;
 
-  // TODO: set cwd to "/"
+  /* set current directory to something */
+  char init_path[80] = "/";
+  result = vfs_chdir(init_path);
+  if (p_fdtable == NULL) {
+    return ENOENT;
+  }
 
   /*
    * Construct argv array structure for the new userspace stack.  The

@@ -17,7 +17,7 @@ int sys_write(int fh, const_userptr_t ubuf, size_t buflen,
 int sys_close(int fh);
 off_t sys_lseek(int fh, off_t pos, int whence, off_t* new_pos);
 int sys_chdir(const_userptr_t);
-int __getcwd(userptr_t* buf, size_t buflen);
+int sys___getcwd(userptr_t* buf, size_t buflen);
 int sys_dup2(int oldfd, int newfd);
 
 #endif /* _FILE_SYSCALL_H_ */

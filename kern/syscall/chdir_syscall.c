@@ -3,41 +3,23 @@
 #include <types.h>
 
 #include <copyinout.h>
+#include <current.h>
 #include <file_syscall.h>
 #include <limits.h>
+#include <proc.h>
 #include <vfs.h>
 
 int sys_chdir(const_userptr_t upathname)
 {
   int res = 0;
+  struct proc* proc = curproc;
 
-  KASSERT(0 && "chdir() not tested");
+  lock_acquire(proc->p_lk_syscall);
 
-  if (upathname == NULL) {
-    res = EFAULT;
-    goto SYS_CHDIR_ERROR;
-  }
+  char pathname[PATH_MAX];
+  size_t pathnamelen;
 
-#if 0
-  // Not sure if I need better protection
-  // this is from kern/proc/proc.c
-
-  /*
-   * Lock the current process to copy its current directory.
-   * (We don't need to lock the new process, though, as we have
-   * the only reference to it.)
-   */
-  spinlock_acquire(&curproc->p_lock);
-  if (curproc->p_cwd != NULL) {
-    VOP_INCREF(curproc->p_cwd);
-    newproc->p_cwd = curproc->p_cwd;
-  }
-  spinlock_release(&curproc->p_lock);
-#endif
-
-  char pathname[__PATH_MAX + 1] = "\0";
-  size_t pathnamelen = 0;
-  res = copyinstr(upathname, pathname, __PATH_MAX + 1, &pathnamelen);
+  res = copyinstr(upathname, pathname, PATH_MAX, &pathnamelen);
   if (res) {
     goto SYS_CHDIR_ERROR;
   }
@@ -51,10 +33,12 @@ int sys_chdir(const_userptr_t upathname)
   goto SYS_CHDIR_ERROR_FREE;
 
 SYS_CHDIR_ERROR_FREE:
+  lock_release(proc->p_lk_syscall);
   KASSERT(res == 0);
   return 0;
 
 SYS_CHDIR_ERROR:
+  lock_release(proc->p_lk_syscall);
   KASSERT(res != 0);
   return res;
 }

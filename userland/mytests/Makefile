@@ -7,6 +7,7 @@ SUBDIRS=\
 	lseekargs \
 	simpleerr \
 	dup2 \
+	cwd \
 	getpid \
 	onefork \
 	twofork \

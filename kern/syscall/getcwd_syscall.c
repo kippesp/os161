@@ -3,16 +3,18 @@
 #include <types.h>
 
 #include <copyinout.h>
+#include <current.h>
 #include <file_syscall.h>
+#include <proc.h>
 #include <uio.h>
 #include <vfs.h>
 
-int __getcwd(userptr_t* buf, size_t buflen)
+int sys___getcwd(userptr_t* buf, size_t buflen)
 {
-  (void)buflen;
   int res = 0;
+  struct proc* proc = curproc;
 
-  KASSERT(0 && "__getcwd() not tested");
+  lock_acquire(proc->p_lk_syscall);
 
   if (buf == NULL) {
     res = EFAULT;
@@ -32,10 +34,12 @@ int __getcwd(userptr_t* buf, size_t buflen)
   goto SYS_GETCWD_ERROR_FREE;
 
 SYS_GETCWD_ERROR_FREE:
+  lock_release(proc->p_lk_syscall);
   KASSERT(res == 0);
   return 0;
 
 SYS_GETCWD_ERROR:
+  lock_release(proc->p_lk_syscall);
   KASSERT(res != 0);
   return res;
 }

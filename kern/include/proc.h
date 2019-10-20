@@ -81,8 +81,6 @@ struct proc {
 
 	struct filedesc** p_fdtable;	/* table of open files */
 
-	/* TODO: char* p_currdir; */
-
 	/* ASST2.2 - process support changes */
 
 	/*
