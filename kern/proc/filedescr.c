@@ -16,7 +16,7 @@ static int check_assigned_fh(struct proc* p, int fh)
 {
   KASSERT(p);
 
-  if ((fh < 0) || (fh > __OPEN_MAX - 1)) {
+  if (!is_valid_fh(fh)) {
     return EBADF;
   }
 
@@ -27,6 +27,11 @@ static int check_assigned_fh(struct proc* p, int fh)
   }
 
   return 0;
+}
+
+bool is_valid_fh(int fh)
+{
+  return ((fh >= 0) && (fh < __OPEN_MAX));
 }
 
 struct filedesc** init_fdtable(void)
@@ -73,7 +78,7 @@ void undup_fdtable(struct filedesc** fdtable)
 
   for (int i = 0; i < __OPEN_MAX; i++) {
     if (fdtable[i]) {
-      lock_acquire(fdtable[i]->fd_lock);
+      KASSERT(lock_do_i_hold(fdtable[i]->fd_lock) == 0);
       KASSERT(fdtable[i]->fd_refcnt >= 1);
       fdtable[i]->fd_refcnt--;
 
@@ -81,9 +86,6 @@ void undup_fdtable(struct filedesc** fdtable)
       if (fdtable[i]->fd_refcnt == 0) {
         vfs_close(fdtable[i]->fd_ofile);
         destroy_fd(fdtable[i]);
-      }
-      else {
-        lock_release(fdtable[i]->fd_lock);
       }
 
       fdtable[i] = NULL;
@@ -117,13 +119,37 @@ struct filedesc* new_fd(void)
   return fd;
 }
 
+/* Allocate a new file descriptor at a specific file handle */
+int new_fd_from_fh(struct proc* p, int fh, struct filedesc** fd)
+{
+  KASSERT(p);
+  KASSERT(fd);
+
+  if (!is_valid_fh(fh)) {
+    return EBADF;
+  }
+
+  if (p->p_fdtable[fh] != NULL) {
+    return EBADF;
+  }
+
+  *fd = new_fd();
+
+  if (*fd == NULL) {
+    return ENOMEM;
+  }
+
+  p->p_fdtable[fh] = *fd;
+
+  return 0;
+}
+
 /* Clean up unused file descriptor at file close or process deallocation. */
 void destroy_fd(struct filedesc* fd)
 {
-  KASSERT(lock_do_i_hold(fd->fd_lock));
+  KASSERT(lock_do_i_hold(fd->fd_lock) == 0);
   KASSERT(fd->fd_refcnt == 0);
 
-  lock_release(fd->fd_lock);
   lock_destroy(fd->fd_lock);
 
   kfree(fd);

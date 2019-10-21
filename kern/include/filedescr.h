@@ -16,6 +16,11 @@ struct filedesc {
 };
 
 /*
+ * Checks if the provided file handle is a valid descriptor table index.
+ */
+bool is_valid_fh(int fh);
+
+/*
  * Allocate and initialize a new file descriptor table.
  */
 struct filedesc** init_fdtable(void);
@@ -41,6 +46,11 @@ int get_fd(struct proc*, int, struct filedesc**);
  * Allocates and initializes a new file descriptor.
  */
 struct filedesc* new_fd(void);
+
+/*
+ * Allocates a new file descriptor at a specific file handle.
+ */
+int new_fd_from_fh(struct proc*, int, struct filedesc**);
 
 /*
  * Called once the file descriptor is ready to be deleted.  A lock must

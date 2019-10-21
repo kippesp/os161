@@ -44,7 +44,7 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
   /* Sanitize some of the insane flag settings such as having O_APPEND set when
    * the operation is O_RDONLY.  Do thing saves from fussing with checks later.
    */
-  if (oflags & O_RDONLY) {
+  if (IS_OFLAGS_RO(oflags)) {
     oflags &= ~(O_APPEND | O_TRUNC);
   }
 
@@ -55,9 +55,9 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
     goto SYS_OPEN_ERROR;
   }
 
-  char kfilename[__PATH_MAX + 1] = "\0";
+  char kfilename[PATH_MAX + 1];
   size_t kfilenamelen = 0;
-  res = copyinstr(filename, kfilename, __PATH_MAX + 1, &kfilenamelen);
+  res = copyinstr(filename, kfilename, PATH_MAX + 1, &kfilenamelen);
   if (res) {
     goto SYS_OPEN_ERROR;
   }
@@ -81,7 +81,8 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
   int fh = -1;
 
   lock_acquire(p->p_lk_syscall);
-  for (int i = STDERR_FILENO + 1; i < __OPEN_MAX; i++) {
+
+  for (int i = STDERR_FILENO + 1; i < OPEN_MAX; i++) {
     if (p->p_fdtable[i] == NULL) {
       fh = i;
       break;
@@ -95,11 +96,14 @@ int sys_open(const_userptr_t filename, int oflags, int* fh_ret)
     goto SYS_OPEN_ERROR;
   }
 
+  /* copy over the oflags */
+  fd->oflags = oflags;
+
   /* Call vfs_open() to complete the open.  If successful the file descriptor
    * offset will be adjusted if the file was opened for writing with O_APPEND.
    */
 
-  res = vfs_open(kfilename, oflags, 0666, &fd->fd_ofile);
+  res = vfs_open(kfilename, fd->oflags, 0666, &fd->fd_ofile);
   if (res) {
     destroy_fd(fd);
     lock_release(p->p_lk_syscall);

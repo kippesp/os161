@@ -25,13 +25,11 @@ int sys_read(int fh, userptr_t ubuf, size_t buflen, ssize_t* buflen_read)
   res = get_fd(curproc, fh, &fd);
 
   if (res) {
-    lock_release(p->p_lk_syscall);
     goto SYS_READ_ERROR;
   }
 
   if (fd->oflags & O_WRONLY) {
     res = EBADF;
-    lock_release(p->p_lk_syscall);
     goto SYS_READ_ERROR;
   }
 
@@ -44,7 +42,6 @@ int sys_read(int fh, userptr_t ubuf, size_t buflen, ssize_t* buflen_read)
 
   if (res) {
     lock_release(fd->fd_lock);
-    lock_release(p->p_lk_syscall);
     goto SYS_READ_ERROR;
   }
 
@@ -57,7 +54,6 @@ int sys_read(int fh, userptr_t ubuf, size_t buflen, ssize_t* buflen_read)
 
   if (res) {
     lock_release(fd->fd_lock);
-    lock_release(p->p_lk_syscall);
     goto SYS_READ_ERROR;
   }
 
@@ -65,17 +61,18 @@ int sys_read(int fh, userptr_t ubuf, size_t buflen, ssize_t* buflen_read)
   fd->fd_pos = rd_uio.uio_offset;
 
   lock_release(fd->fd_lock);
-  lock_release(p->p_lk_syscall);
 
   goto SYS_READ_ERROR_FREE;
 
 SYS_READ_ERROR_FREE:
   KASSERT(res == 0);
+  lock_release(p->p_lk_syscall);
   KASSERT(lock_do_i_hold(p->p_lk_syscall) == 0);
   return 0;
 
 SYS_READ_ERROR:
   KASSERT(res != 0);
+  lock_release(p->p_lk_syscall);
   KASSERT(lock_do_i_hold(p->p_lk_syscall) == 0);
   return res;
 }

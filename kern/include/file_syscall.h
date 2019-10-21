@@ -10,6 +10,8 @@
  *    struct file descriptor - the structure definition of an open file
  */
 
+#define IS_OFLAGS_RO(x) (((x) & (O_WRONLY | O_RDWR)) == 0x0)
+
 int sys_open(const_userptr_t filename, int oflags, int* fh);
 int sys_read(int fh, userptr_t ubuf, size_t buflen, ssize_t* buflen_read);
 int sys_write(int fh, const_userptr_t ubuf, size_t buflen,

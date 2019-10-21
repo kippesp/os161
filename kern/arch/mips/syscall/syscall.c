@@ -179,6 +179,11 @@ void syscall(struct trapframe* tf)
 
     case SYS_dup2:
       err = sys_dup2((int)tf->tf_a0, (int)tf->tf_a1);
+
+      if (err == 0) {
+        /* if no error, return the second descriptor's index */
+        retval = (int)tf->tf_a1;
+      }
       break;
 
     case SYS_chdir:

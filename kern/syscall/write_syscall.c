@@ -1,6 +1,8 @@
 #include <kern/errno.h>
 #include <types.h>
 
+#include <kern/fcntl.h>
+
 #include <copyinout.h>
 #include <current.h>
 #include <filedescr.h>
@@ -22,13 +24,18 @@ int sys_write(int fh, const_userptr_t ubuf, size_t buflen,
   res = get_fd(curproc, fh, &fd);
 
   if (res) {
-    lock_release(p->p_lk_syscall);
+    goto SYS_WRITE_ERROR;
+  }
+
+  /* check if writing is permitted */
+
+  if (IS_OFLAGS_RO(fd->oflags)) {
+    res = EBADF;
     goto SYS_WRITE_ERROR;
   }
 
   if (buflen == 0) {
     *buflen_written = 0;
-    lock_release(p->p_lk_syscall);
     goto SYS_WRITE_ERROR_FREE;
   }
 
@@ -47,7 +54,6 @@ int sys_write(int fh, const_userptr_t ubuf, size_t buflen,
 
   if (res) {
     lock_release(fd->fd_lock);
-    lock_release(p->p_lk_syscall);
     goto SYS_WRITE_ERROR;
   }
 
@@ -62,14 +68,15 @@ int sys_write(int fh, const_userptr_t ubuf, size_t buflen,
   }
 
   lock_release(fd->fd_lock);
-  lock_release(p->p_lk_syscall);
 
 SYS_WRITE_ERROR_FREE:
+  lock_release(p->p_lk_syscall);
   KASSERT(lock_do_i_hold(p->p_lk_syscall) == 0);
   KASSERT(res == 0);
   return 0;
 
 SYS_WRITE_ERROR:
+  lock_release(p->p_lk_syscall);
   KASSERT(lock_do_i_hold(p->p_lk_syscall) == 0);
   KASSERT(res != 0);
   return res;
