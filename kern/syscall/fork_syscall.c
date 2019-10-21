@@ -10,6 +10,7 @@
 #include <proc.h>
 #include <synch.h>
 #include <vfs.h>
+#include <vnode.h>
 
 #include <fork_syscall.h>
 #include <procid_mgmt.h>
@@ -52,16 +53,6 @@ static void enter_forked_process(void* data1, unsigned long data2)
 
   struct trapframe tf;
   memcpy(&tf, init_data->c_tf, sizeof(struct trapframe));
-
-  // kprintf("entering child....\n");
-
-#if 0
-  /* TODO */
-  char c[256];
-  strcpy(c, "/");
-  int res = vfs_chdir(c);
-  KASSERT(res == 0);
-#endif
 
   /* Signal parent its okay to deallocate the passed trapframe */
   V(init_data->waitforchildstart);
@@ -165,6 +156,13 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
     goto SYS_FORK_ERROR_H;
   }
 
+  /* Copy the current directory of the current process */
+  spinlock_acquire(&proc->p_lock);
+  KASSERT(cinitd->c_proc->p_cwd == NULL);
+  VOP_INCREF(proc->p_cwd);
+  cinitd->c_proc->p_cwd = proc->p_cwd;
+  spinlock_release(&proc->p_lock);
+
   /* Call the entrypoint for the forked child */
   pid_t cpid = cinitd->c_proc->p_pid;
   res = thread_fork(proc->p_name, cinitd->c_proc, enter_forked_process,
@@ -190,6 +188,8 @@ SYS_FORK_ERROR_FREE:
   return 0;
 
 SYS_FORK_ERROR_I:
+  VOP_DECREF(cinitd->c_proc->p_cwd);
+  cinitd->c_proc->p_cwd = NULL;
   sem_destroy(cinitd->waitforchildstart);
 SYS_FORK_ERROR_H:
   unassociate_child_pid_from_parent(proc, cinitd->c_proc->p_pid);
