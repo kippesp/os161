@@ -7,6 +7,7 @@
 #include <current.h>
 #include <file_syscall.h>
 #include <filedescr.h>
+#include <synch.h>
 #include <vnode.h>
 
 off_t sys_lseek(int fh, off_t pos, int whence, off_t* new_pos_ret)
@@ -46,6 +47,8 @@ off_t sys_lseek(int fh, off_t pos, int whence, off_t* new_pos_ret)
 
   /* calculate the desired new position */
 
+  lock_acquire(fd->fd_lock);
+
   off_t new_pos = fd->fd_pos;
 
   if (whence == SEEK_SET) {
@@ -59,6 +62,7 @@ off_t sys_lseek(int fh, off_t pos, int whence, off_t* new_pos_ret)
     res = VOP_STAT(fd->fd_ofile, &statbuf);
 
     if (res) {
+      lock_release(fd->fd_lock);
       goto SYS_LSEEK_ERROR;
     }
 
@@ -67,12 +71,15 @@ off_t sys_lseek(int fh, off_t pos, int whence, off_t* new_pos_ret)
 
   if (new_pos < 0) {
     res = EINVAL;
+    lock_release(fd->fd_lock);
     goto SYS_LSEEK_ERROR;
   }
 
   /* update the new position */
   fd->fd_pos = new_pos;
   *new_pos_ret = new_pos;
+
+  lock_release(fd->fd_lock);
 
   goto SYS_LSEEK_ERROR_FREE;
 
