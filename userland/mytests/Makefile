@@ -12,6 +12,8 @@ SUBDIRS=\
 	onefork \
 	twofork \
 	args \
-	execv
+	execv \
+	asst2final \
+	echo
 
 .include "$(TOP)/mk/os161.subdir.mk"
