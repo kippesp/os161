@@ -479,3 +479,28 @@ int associate_child_pid_in_parent(pid_t pid)
 
   return 0;
 }
+
+/* Remove all threads from list of children threads. */
+void unassociate_all_pids_from_parent()
+{
+  struct proc* proc = curproc;
+
+  KASSERT(lock_do_i_hold(proc->p_lk_mychild_threads));
+
+  struct thread_list* tl = proc->p_mychild_threads;
+  struct thread_list* tl_next = proc->p_mychild_threads;
+
+  while (tl_next != NULL) {
+    tl_next = tl->tl_next;
+
+    struct proc* orphaned_proc = get_proc_from_pid(tl->tl_pid);
+
+    /* Self parent the orphan */
+    orphaned_proc->p_ppid = orphaned_proc->p_pid;
+    orphaned_proc->p_parent_proc = NULL; /* NULL probably better than self */
+
+    kfree(tl);
+  }
+
+  proc->p_mychild_threads = NULL;
+}

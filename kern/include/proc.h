@@ -151,6 +151,9 @@ void unassociate_child_pid_from_parent(struct proc* proc, pid_t pid);
 /* Add thread to list of children threads. */
 int associate_child_pid_in_parent(pid_t pid);
 
+/* Remove all threads from list of children threads. */
+void unassociate_all_pids_from_parent(void);
+
 #endif /* _PROC_H_ */
 
 /* vim: set noet sw=8 sts=8: */
