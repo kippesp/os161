@@ -143,7 +143,10 @@ int sys_fork(const_userptr_t tf, pid_t* child_pid)
   }
 
   /* Record the new pid in the parent to support waitpid. */
+
+  lock_acquire(proc->p_lk_mychild_threads);
   res = associate_child_pid_in_parent(cinitd->c_proc->p_pid);
+  lock_release(proc->p_lk_mychild_threads);
 
   if (res) {
     goto SYS_FORK_ERROR_G;
@@ -192,7 +195,9 @@ SYS_FORK_ERROR_I:
   cinitd->c_proc->p_cwd = NULL;
   sem_destroy(cinitd->waitforchildstart);
 SYS_FORK_ERROR_H:
+  lock_acquire(proc->p_lk_mychild_threads);
   unassociate_child_pid_from_parent(proc, cinitd->c_proc->p_pid);
+  lock_release(proc->p_lk_mychild_threads);
 SYS_FORK_ERROR_G:
   unassign_pid(cinitd->c_proc->p_pid);
   cinitd->c_proc->p_pid = 0;

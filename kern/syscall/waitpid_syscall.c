@@ -112,6 +112,7 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 
   /* Remove the (now mostly dead) child pid from the parent */
   struct proc* proc = curproc;
+  lock_acquire(proc->p_lk_mychild_threads);
   unassociate_child_pid_from_parent(proc, tgt_pid);
 
   /*
@@ -135,8 +136,12 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
     orphaned_proc->p_ppid = orphaned_proc->p_pid;
     orphaned_proc->p_parent_proc = NULL; /* NULL probably better than self */
 
+    lock_acquire(tgt_proc->p_lk_mychild_threads);
     unassociate_child_pid_from_parent(tgt_proc, orphaned_pid);
+    lock_release(tgt_proc->p_lk_mychild_threads);
   }
+
+  lock_release(proc->p_lk_mychild_threads);
 
   /* Orphan this thread */
   tgt_proc->p_ppid = tgt_proc->p_pid;

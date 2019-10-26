@@ -84,12 +84,13 @@ struct proc {
 	/* ASST2.2 - process support changes */
 
 	/*
-	 * Forked threads ASST2.2 are created with a separate process.  This
-	 * doesn't increase the thread count, but it does get added to the
-	 * p_mychild_threads linked list.
+	 * Forked threads in ASST2.2 are created with a separate process.  This
+	 * doesn't increase the process's thread count, but the thread does get
+	 * added to the p_mychild_threads linked list.
 	 */
 
 	/* linked list of forked children to support waidpid */
+	struct lock* p_lk_mychild_threads;
 	struct thread_list* p_mychild_threads;
 
 	/*

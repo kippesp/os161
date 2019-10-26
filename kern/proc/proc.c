@@ -99,6 +99,7 @@ struct proc* proc_create(const char* name)
 
   /* ASST2.2 stuff */
 
+  proc->p_lk_mychild_threads = lock_create("p_lk_mychild_threads");
   proc->p_mychild_threads = NULL;
 
   proc->p_ppid = 0;
@@ -136,6 +137,7 @@ void proc_uncreate(struct proc* proc)
 
   cv_destroy(proc->p_cv_exited);
   lock_destroy(proc->p_lk_exited);
+  lock_destroy(proc->p_lk_mychild_threads);
 
   KASSERT(proc->p_parent_proc == NULL);
   KASSERT(proc->p_pid == 0);
@@ -418,6 +420,8 @@ void unassociate_child_pid_from_parent(struct proc* proc, pid_t pid)
 {
   KASSERT(proc != NULL);
 
+  KASSERT(lock_do_i_hold(proc->p_lk_mychild_threads));
+
   struct thread_list** tl_head = &proc->p_mychild_threads;
   struct thread_list* tl_prev = proc->p_mychild_threads;
   struct thread_list* tl_tgt = proc->p_mychild_threads;
@@ -450,6 +454,7 @@ int associate_child_pid_in_parent(pid_t pid)
   struct proc* proc = curproc;
 
   KASSERT(proc != NULL);
+  KASSERT(lock_do_i_hold(proc->p_lk_mychild_threads));
 
   struct thread_list* tl_prev = proc->p_mychild_threads;
   struct thread_list** tl = &proc->p_mychild_threads;
@@ -461,8 +466,9 @@ int associate_child_pid_in_parent(pid_t pid)
 
   *tl = (struct thread_list*)kmalloc(sizeof(struct thread_list));
 
-  if (*tl == NULL)
+  if (*tl == NULL) {
     return ENOMEM;
+  }
 
   if (tl_prev) {
     tl_prev->tl_next = *tl;

@@ -112,13 +112,14 @@ struct proc* get_proc_from_pid(pid_t pid)
 bool is_pid_my_child(pid_t pid)
 {
   struct proc* proc = curproc;
+
+  lock_acquire(proc->p_lk_mychild_threads);
+
   struct thread_list* tl = proc->p_mychild_threads;
 
   if (tl == NULL) {
     return false;
   }
-
-  spinlock_acquire(&sysprocs.sp_lock);
 
   while (tl != NULL) {
     if (tl->tl_pid == pid) {
@@ -128,7 +129,7 @@ bool is_pid_my_child(pid_t pid)
     tl = tl->tl_next;
   }
 
-  spinlock_release(&sysprocs.sp_lock);
+  lock_release(proc->p_lk_mychild_threads);
 
   if (tl)
     return true;
