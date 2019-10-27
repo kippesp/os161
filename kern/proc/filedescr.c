@@ -76,19 +76,23 @@ void undup_fdtable(struct filedesc** fdtable)
 {
   KASSERT(fdtable);
 
-  for (int i = 0; i < __OPEN_MAX; i++) {
-    if (fdtable[i]) {
-      KASSERT(lock_do_i_hold(fdtable[i]->fd_lock) == 0);
-      KASSERT(fdtable[i]->fd_refcnt >= 1);
-      fdtable[i]->fd_refcnt--;
+  for (int fh = 0; fh < __OPEN_MAX; fh++) {
+    if (fdtable[fh]) {
+      lock_acquire(fdtable[fh]->fd_lock);
+      KASSERT(fdtable[fh]->fd_refcnt >= 1);
+      fdtable[fh]->fd_refcnt--;
 
       /* close the unreferenced file */
-      if (fdtable[i]->fd_refcnt == 0) {
-        vfs_close(fdtable[i]->fd_ofile);
-        destroy_fd(fdtable[i]);
+      if (fdtable[fh]->fd_refcnt == 0) {
+        vfs_close(fdtable[fh]->fd_ofile);
+        lock_release(fdtable[fh]->fd_lock);
+        destroy_fd(fdtable[fh]);
+      }
+      else {
+        lock_release(fdtable[fh]->fd_lock);
       }
 
-      fdtable[i] = NULL;
+      fdtable[fh] = NULL;
     }
   }
 }
