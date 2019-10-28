@@ -17,9 +17,15 @@ int sys_execv(userptr_t programs_in, userptr_t uargs_in)
 {
   int res = 0;
   char* argv_buf = NULL;      /* char** args in kernel space */
+  char* new_p_name = NULL;    /* name for new process */
   size_t total_argv_size = 0; /* everything; strings, ptrs, and NULL */
   size_t bytes_for_aligned_argv_strings = 0; /* just the padded strings */
   int argc = 0;
+
+  if (programs_in == NULL) {
+    res = EFAULT;
+    goto SYS_EXEC_ERROR;
+  }
 
   char programs[512];
   memset(programs, 0x0, sizeof(programs));
@@ -114,7 +120,6 @@ int sys_execv(userptr_t programs_in, userptr_t uargs_in)
 
   vaddr_t stackptr = 0x0;   /* stack that will be defined for the new process */
   vaddr_t entrypoint = 0x0; /* the elf */
-  char* new_p_name = NULL;
 
   {
     /*

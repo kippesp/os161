@@ -118,6 +118,7 @@ bool is_pid_my_child(pid_t pid)
   struct thread_list* tl = proc->p_mychild_threads;
 
   if (tl == NULL) {
+    lock_release(proc->p_lk_mychild_threads);
     return false;
   }
 

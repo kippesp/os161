@@ -8,6 +8,7 @@
 #include <proc.h>
 #include <synch.h>
 
+#include <align.h>
 #include <procid_mgmt.h>
 #include <waitpid_syscall.h>
 
@@ -19,10 +20,7 @@ int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
   /* track return status internally since status is permitted to be NULL */
   int rstatus = 0;
 
-  /* check status pointer is int aligned (see badcall/bad_waitpid.c) */
-  KASSERT(sizeof(unsigned int) >= sizeof(userptr_t));
-  unsigned int align_mask = ~(unsigned int)sizeof(int);
-  if ((unsigned int)tgt_status != ((unsigned int)tgt_status & align_mask)) {
+  if (!IS_ALIGNED_USERPTR_T(tgt_status)) {
     res = EFAULT;
     goto SYS_WAITPID_ERROR;
   }
