@@ -4,7 +4,7 @@
 
 #include <copyinout.h>
 #include <current.h>
-#include <file_syscall.h>
+#include <syscall.h>
 #include <limits.h>
 #include <proc.h>
 #include <vfs.h>

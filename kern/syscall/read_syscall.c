@@ -8,9 +8,9 @@
 #include <copyinout.h>
 #include <current.h>
 #include <filedescr.h>
-#include <file_syscall.h>
 #include <proc.h>
 #include <synch.h>
+#include <syscall.h>
 #include <uio.h>
 #include <vnode.h>
 

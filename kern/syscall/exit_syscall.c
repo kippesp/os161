@@ -5,8 +5,7 @@
 #include <current.h>
 #include <proc.h>
 #include <synch.h>
-
-#include <exit_syscall.h>
+#include <syscall.h>
 
 void sys__exit(int exitcode)
 {

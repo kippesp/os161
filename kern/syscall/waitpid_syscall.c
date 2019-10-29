@@ -10,7 +10,7 @@
 
 #include <align.h>
 #include <procid_mgmt.h>
-#include <waitpid_syscall.h>
+#include <syscall.h>
 
 int sys_waitpid(pid_t tgt_pid, userptr_t tgt_status, int options, pid_t* rvalue)
 {

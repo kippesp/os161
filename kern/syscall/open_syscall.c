@@ -9,10 +9,10 @@
 #include <copyinout.h>
 #include <current.h>
 #include <filedescr.h>
-#include <file_syscall.h>
 #include <limits.h>
 #include <proc.h>
 #include <synch.h>
+#include <syscall.h>
 #include <vnode.h>
 #include <vfs.h>
 

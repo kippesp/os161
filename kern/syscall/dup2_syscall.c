@@ -3,8 +3,8 @@
 
 #include <current.h>
 #include <filedescr.h>
-#include <file_syscall.h>
 #include <synch.h>
+#include <syscall.h>
 #include <proc.h>
 #include <vfs.h>
 

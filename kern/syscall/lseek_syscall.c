@@ -5,9 +5,9 @@
 #include <kern/seek.h>
 
 #include <current.h>
-#include <file_syscall.h>
 #include <filedescr.h>
 #include <synch.h>
+#include <syscall.h>
 #include <vnode.h>
 
 off_t sys_lseek(int fh, off_t pos, int whence, off_t* new_pos_ret)

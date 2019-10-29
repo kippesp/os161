@@ -58,28 +58,33 @@ int sys___time(userptr_t user_seconds, userptr_t user_nanoseconds);
 
 /* ASST2.1 additions */
 
-// TODO Move the other protos here
-#if 0
-file      syscall/open_syscall.c
-file      syscall/read_syscall.c
-file      syscall/write_syscall.c
-file      syscall/close_syscall.c
-file      syscall/lseek_syscall.c
-file      syscall/chdir_syscall.c
-file      syscall/getcwd_syscall.c
-file      syscall/remove_syscall.c
+/*
+ * Developer Note: I use the convention
+ *    fh - file handle       - index into the process file table
+ *    fd - file descriptor   - a single file descriptor instance
+ *    struct file descriptor - the structure definition of an open file
+ */
 
-file      syscall/dup2_syscall.c
-file      syscall/fork_syscall.c
-file      syscall/waitpid_syscall.c
-file      syscall/exit_syscall.c
-file      syscall/execv_syscall.c
-#endif
+int sys_write(int fh, const_userptr_t ubuf, size_t buflen,
+              ssize_t* buflen_written);
 
 /* ASST2.2a additions */
 
+#define IS_OFLAGS_RO(x) (((x) & (O_WRONLY | O_RDWR)) == 0x0)
+
+int sys_open(const_userptr_t filename, int oflags, int* fh);
+int sys_read(int fh, userptr_t ubuf, size_t buflen, ssize_t* buflen_read);
+int sys_close(int fh);
+off_t sys_lseek(int fh, off_t pos, int whence, off_t* new_pos);
+int sys_chdir(const_userptr_t);
+int sys___getcwd(userptr_t* buf, size_t buflen);
+int sys_dup2(int oldfd, int newfd);
+
 /* ASST2.2b additions */
 
+void sys__exit(int exitcode);
 int sys_execv(userptr_t program, userptr_t args);
+int sys_fork(const_userptr_t tf, pid_t*);
+int sys_waitpid(pid_t pid, userptr_t status, int options, pid_t*);
 
 #endif /* _SYSCALL_H_ */

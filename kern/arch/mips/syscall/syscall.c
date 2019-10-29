@@ -37,11 +37,7 @@
 #include <syscall.h>
 
 #include <copyinout.h>
-#include <file_syscall.h>
-#include <fork_syscall.h>
 #include <procid_mgmt.h>
-#include <waitpid_syscall.h>
-#include <exit_syscall.h>
 
 /*
  * System call dispatcher.

@@ -4,8 +4,8 @@
 
 #include <copyinout.h>
 #include <current.h>
-#include <file_syscall.h>
 #include <proc.h>
+#include <syscall.h>
 #include <uio.h>
 #include <vfs.h>
 

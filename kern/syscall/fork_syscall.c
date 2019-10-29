@@ -12,8 +12,8 @@
 #include <vfs.h>
 #include <vnode.h>
 
-#include <fork_syscall.h>
 #include <procid_mgmt.h>
+#include <syscall.h>
 
 struct forked_child_init_data {
   struct trapframe* c_tf;
