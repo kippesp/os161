@@ -187,16 +187,3 @@ int new_fh(struct proc* p, int* fh)
 
   return 0;
 }
-
-int get_fh(struct proc* p, struct filedesc* fd)
-{
-  // TODO
-  (void)p;
-  (void)fd;
-
-  KASSERT(p);
-  KASSERT(fd);
-  KASSERT(0 && "Not implemented");
-
-  return 0;
-}

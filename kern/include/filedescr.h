@@ -32,8 +32,8 @@ struct filedesc** init_fdtable(void);
 struct filedesc** dup_fdtable(struct filedesc** src);
 
 /*
- * TODO: Decrement the refcounts in fdtable.  If the refcount reaches 0, TODO.
- * Then deallocate fdtable.
+ * Dereference any open files and deallocate any unreferenced handles.
+ * the fdtable structure is not deallocated here.
  */
 void undup_fdtable(struct filedesc** fdtable);
 
@@ -64,11 +64,5 @@ void destroy_fd(struct filedesc*);
  * an appropriate error code on error and 0 on success.
  */
 int new_fh(struct proc*, int* fh);
-
-/*
- * Returns the file handle of the found file descriptor.  Returns -1 if not
- * found.
- */
-int get_fh(struct proc*, struct filedesc*);
 
 #endif /* _FILEDESCR_H_ */
